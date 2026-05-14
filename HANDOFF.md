@@ -6,13 +6,13 @@
 
 ---
 
-## 🎯 立即要做的事（用户说的）
+## 🎯 立即要做的事
 
 ```
-1. git init   # 在 /home/claude/projects/lit-share/
-2. 首次 commit M0 baseline
-3. 进入 M1：用户系统 + 首页 + 个人中心壳
+M0 ✅ / M1 ✅ → 下一步：M2（求助发布 + 待应助大厅 + 签到）
 ```
+
+> 用户（Anna，`annachow250815@gmail.com`）**尚未注册**。Admin 名额留着等她首次注册时自动激活。
 
 ---
 
@@ -31,7 +31,7 @@
 
 ---
 
-## ✅ 已完成：M0（项目脚手架）
+## ✅ 已完成：M0 + M1
 
 ### 技术栈（已确认）
 - **Python 3.12** + **FastAPI 0.115** + **SQLAlchemy 2.0** + **Alembic**
@@ -40,26 +40,34 @@
 - **PyMuPDF**（PDF 处理，M3 用）
 - **SQLite 默认**，`DATABASE_URL` 切换 MySQL/PG。已装 `pymysql`、`psycopg[binary]` 驱动
 
-### 项目结构
+### 项目结构（M1 后）
 ```
 /home/claude/projects/lit-share/
-├── .env / .env.example      # SECRET_KEY/ADMIN_EMAIL/DATABASE_URL/业务默认值
-├── requirements.txt
-├── run.sh                   # 本地一键 dev 启动
-├── HANDOFF.md               # ← 你正在看的文件
-├── .venv/                   # 已 pip install -r requirements.txt
+├── .env / .env.example
+├── requirements.txt        # bcrypt 直接用,不走 passlib
+├── run.sh
+├── HANDOFF.md              # ← 你正在看的文件
+├── .venv/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py             # FastAPI 入口,root_path=/preview/lit
-│   ├── settings.py         # Pydantic Settings
-│   ├── db.py               # 引擎工厂(SQLite/MySQL/PG 适配)
-│   ├── models.py           # 7 张表 ORM(下方详列)
+│   ├── main.py             # FastAPI 入口 + 401→login 跳转
+│   ├── settings.py         # Pydantic Settings (bootstrap 配置)
+│   ├── db.py               # 引擎工厂 + SessionLocal + get_db
+│   ├── models.py           # ORM,BigInt 变体跨 DB
+│   ├── security.py         # bcrypt + 签名 cookie + current_user/require_login
+│   ├── templating.py       # render() 自动注入 base_path/current_user
+│   ├── routers/
+│   │   ├── __init__.py
+│   │   ├── auth.py         # /auth/register|verify|login|logout
+│   │   └── me.py           # /me, /me/profile
 │   ├── templates/
-│   │   ├── base.html
-│   │   └── index.html
-│   └── static/app.css
-├── data/app.db             # SQLite,表已建空
-└── uploads/                # M3 应助 PDF 落地点
+│   │   ├── base.html       # nav 接登录态
+│   │   ├── index.html      # 首页(根据登录态切按钮)
+│   │   ├── auth/{register,login,notice}.html
+│   │   └── me/{index,profile}.html
+│   └── static/app.css      # 学术蓝 + 表单 + alert + kv
+├── data/app.db             # SQLite (M1 测试用户已清空)
+└── uploads/
 ```
 
 ### 已建的 7 张 ORM 表（`app/models.py`）
@@ -84,6 +92,10 @@
 - ⚠️ Caddy `handle_path` 会剥前缀，但 FastAPI 的 `root_path` 期望前缀保留。**必须用 `handle` 而不是 `handle_path`** 给 lit-share 路由
 - ⚠️ uploadserver 把 `/upload` 当成自己内部路由，**不能挪到 /upload 路径下**——保持在根 `/`
 - ⚠️ Caddyfile 里 bcrypt 哈希 **不要做 `$$` 转义**，直接写原文
+- ⚠️ **passlib 1.7.4 + bcrypt 5.x 不兼容**（backend detect 用超长 secret 探测会抛 ValueError）。改成直接用 `bcrypt` 库。已从 requirements.txt 移除 passlib
+- ⚠️ **SQLite + BigInteger PK 不会触发 ROWID autoincrement**，插入会 `NOT NULL: id` 失败。`models.BigInt = BigInteger().with_variant(Integer(), "sqlite")` 是修复方案——MySQL/PG 仍是 BIGINT
+- ⚠️ Cookie 的 `path` 必须等于 `APP_BASE_PATH`（`/preview/lit`），否则浏览器不会回传。`security.cookie_path()` 处理了
+- ⚠️ Caddy 上有 basic auth（凭据 `anna` / `/home/claude/apps/web.cred`），curl 测试要 `--user`
 
 ---
 
@@ -117,22 +129,39 @@
 | M | 状态 | 内容 |
 |---|---|---|
 | M0 | ✅ 完成 | 项目脚手架 + 部署反代 |
-| **M1** | **▶ 下一个** | 用户系统 + 首页 + 个人中心壳 |
-| M2 | ⬜ 待开 | 求助发布 + 待应助大厅 + 签到 |
+| M1 | ✅ 完成 | 用户系统 + 首页 + 个人中心壳 |
+| **M2** | **▶ 下一个** | 求助发布 + 待应助大厅 + 签到 |
 | M3 | ⬜ 待开 | 应助流转 + PDF脱敏(开关) + 自动确认 |
 | M4 | ⬜ 待开 | 举报机制 + 管理后台 + 频率限制 |
 | M5 | ⬜ 待开 | 端到端测试 + 部署上线 |
 
-### M1 范围（下一步）
-- 用户注册（邮箱 + 密码 + nickname）
-- 邮箱验证（stub：把验证链接打印到控制台/log，不实际发邮件）
-- 登录/登出/会话（itsdangerous 签名 cookie）
-- 密码哈希用 `passlib[bcrypt]`
+### M1 交付物（已完成,冒烟测试通过）
+- 注册 / 邮箱验证 stub（验证链接打印到 app.log，找它直接 `grep verify\?token /home/claude/projects/lit-share/app.log | tail`）
+- 登录 / 登出 / itsdangerous 签名 cookie（`litshare_session`，path=`/preview/lit`，30 天）
+- 密码哈希：`bcrypt` 直接调用，72 字节硬截断
 - 首次注册 `ADMIN_EMAIL` 自动 `is_admin=True`
-- 个人中心壳页面：显示 email、nickname、points、is_admin、注册时间
-- 首页加 "登录/注册" 按钮（已登录则显示 nickname）
-- 路由：`/auth/register`、`/auth/login`、`/auth/logout`、`/me`、`/me/profile`
-- **重要：所有模板里的 URL 必须用 `{{ base_path }}` 前缀**，因为反代 base path 是 `/preview/lit`
+- `current_user` / `require_login` / `require_admin` 三个依赖（`app/security.py`）
+- 未登录访问受保护 HTML 页 → 303 到 `/auth/login?next=...`；JSON 请求仍 401
+- 个人中心 `/me`（资料卡片）+ `/me/profile`（改昵称）
+- 首页 nav 接入登录态：未登录显示「登录/注册」，已登录显示昵称 + 登出按钮
+
+### M2 范围（下一个会话开干）
+**模型已就位**（`HelpRequest`, `PointTransaction`, `DailySignin`, `LibraryPaper`），只缺路由 + 模板。
+
+- **签到** `/me/signin` POST：写 `daily_signins`（同 user_id+date 唯一），同时 `point_transactions` 加 `SIGNIN_POINTS`，更新 `users.points`。同日重复 → 友好提示，不重发分
+- **发布求助** `/requests/new` GET/POST：表单字段见需求文档（title/authors/journal/year/extra/bounty 10/20/30/50）。提交时检查 `users.points >= bounty`，扣分 → 写 ledger → INSERT help_requests(status=`open`, request_deadline=now+REQUEST_TIMEOUT_DAYS)
+- **大厅** `/requests` GET：列 `status='open'` 的求助，按 created_at 倒序，分页。**未登录可看不可操作**
+- **求助详情** `/requests/{id}` GET：展示元数据 + 状态。完结后可下载共享库版本
+- **个人中心扩展**：「我发布的求助」+「我的应助」两个子区
+- **频率限制**：用 `system_settings` 取 `SAME_JOURNAL_MONTHLY_LIMIT`（默认 4），同期刊单用户单月超过就拒绝发布
+- **system_settings 引导**：写一个 `app/runtime_config.py` 做 lazy read-through cache，admin 后台可改（M4 做 UI，M2 只要先把 get/set helper 搭好）
+- **首页实时动态**：select 最近 N 条 `point_transactions` 关联渲染（"小明 求助了《xxx》"、"小李 完成了一次应助"）
+
+### 全局重要约定
+- **所有模板 URL 必须用 `{{ base_path }}` 前缀**（反代 base 是 `/preview/lit`）
+- 写新路由的 redirect 用 `app.routers.auth._redirect(path)` 的同款式：拼 `settings.APP_BASE_PATH + path`
+- 几乎所有「数字」和「文案」走 `system_settings` 表，admin 后台可改；`.env` 只是首次启动种子值
+- 跨 DB：PK/FK 用 `models.BigInt`，不要直接 `BigInteger`
 
 ---
 
@@ -185,7 +214,7 @@ TaskList  # claude code 内置工具
 ---
 
 **下一个 Claude 会话开干前**：
-1. `cat /home/claude/projects/lit-share/HANDOFF.md`（你正在做的事）
+1. `cat /home/claude/projects/lit-share/HANDOFF.md`（你正在看）
 2. `cat /home/claude/inbox/文献互助平台.md`（需求原文）
-3. `cd /home/claude/projects/lit-share && git init && git add -A && git commit -m "M0: 项目脚手架"`
-4. 开 M1
+3. `cd /home/claude/projects/lit-share && git log --oneline`（查看进度）
+4. 开 M2：从签到 + 发布求助两个最简单的入手

@@ -13,8 +13,16 @@
   <a href="{{ base_path }}/" class="brand">📚 {{ site_title }}</a>
   <div class="nav-links">
     <a href="{{ base_path }}/">首页</a>
-    <a href="{{ base_path }}/requests">待应助大厅</a>
-    <a href="{{ base_path }}/me">个人中心</a>
+    <a href="{{ base_path }}/requests">大厅</a>
+    {% if current_user %}
+      <a href="{{ base_path }}/me">{{ current_user.nickname or current_user.email }}{% if current_user.is_admin %} ★{% endif %}</a>
+      <form method="post" action="{{ base_path }}/auth/logout" class="inline-form">
+        <button type="submit" class="link-btn">登出</button>
+      </form>
+    {% else %}
+      <a href="{{ base_path }}/auth/login">登录</a>
+      <a href="{{ base_path }}/auth/register" class="nav-cta">注册</a>
+    {% endif %}
   </div>
 </nav>
 

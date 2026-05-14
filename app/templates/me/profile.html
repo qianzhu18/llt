@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}修改资料 · {{ site_title }}{% endblock %}
+{% block content %}
+<section class="card form-card">
+  <h2>修改昵称</h2>
+  {% if error %}<p class="alert error">{{ error }}</p>{% endif %}
+  {% if message %}<p class="alert ok">{{ message }}</p>{% endif %}
+  <form method="post" action="{{ base_path }}/me/profile">
+    <label>邮箱（不可改）
+      <input type="email" value="{{ current_user.email }}" disabled>
+    </label>
+    <label>昵称
+      <input type="text" name="nickname" required maxlength="64" value="{{ current_user.nickname or '' }}">
+    </label>
+    <button type="submit" class="btn primary block">保存</button>
+  </form>
+  <p class="muted small"><a href="{{ base_path }}/me">返回个人中心</a></p>
+</section>
+{% endblock %}

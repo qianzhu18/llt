@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}个人中心 · {{ site_title }}{% endblock %}
+{% block content %}
+<section class="card">
+  <h2>👤 个人中心</h2>
+  <dl class="kv">
+    <dt>邮箱</dt><dd>{{ current_user.email }}{% if current_user.email_verified %} ✓{% endif %}</dd>
+    <dt>昵称</dt><dd>{{ current_user.nickname or '（未设置）' }}</dd>
+    <dt>积分</dt><dd><strong>{{ current_user.points }}</strong></dd>
+    <dt>身份</dt><dd>{% if current_user.is_admin %}管理员 ★{% else %}普通用户{% endif %}</dd>
+    <dt>注册时间</dt><dd>{{ current_user.created_at.strftime('%Y-%m-%d %H:%M') if current_user.created_at else '-' }}</dd>
+  </dl>
+  <p style="margin-top:14px;">
+    <a href="{{ base_path }}/me/profile" class="btn secondary">修改昵称</a>
+  </p>
+</section>
+
+<section class="card muted small">
+  <p>M2 起，这里会展示：我发布的求助、我的应助记录、签到入口、积分流水。</p>
+</section>
+{% endblock %}
