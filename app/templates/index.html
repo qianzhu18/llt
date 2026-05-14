@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <h1>{{ site_title }}</h1>
+  <p class="slogan">{{ site_slogan }}</p>
+  <div class="cta">
+    <a href="{{ base_path }}/requests/new" class="btn primary">📝 发布文献求助</a>
+    <a href="{{ base_path }}/requests" class="btn secondary">📥 待应助大厅</a>
+  </div>
+</section>
+
+<section class="card">
+  <h2>实时动态</h2>
+  <p class="muted">（M0 阶段占位，M2 接入真实数据）</p>
+</section>
+
+<section class="card muted small">
+  <strong>M0 自检</strong>
+  <ul>
+    <li>FastAPI + SQLAlchemy + Jinja2 + HTMX/Alpine 已就绪</li>
+    <li>数据库已建表（默认 SQLite，切 MySQL/PG 改 DATABASE_URL 即可）</li>
+    <li>反代 base path: <code>{{ base_path }}</code></li>
+  </ul>
+</section>
+{% endblock %}
