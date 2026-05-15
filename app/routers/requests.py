@@ -124,6 +124,7 @@ def new_form(
         bounty_options=BOUNTY_OPTIONS,
         timeout_days=timeout_days,
         current_year=CURRENT_YEAR,
+        form={},
     )
 
 
