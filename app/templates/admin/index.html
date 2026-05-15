@@ -1,0 +1,34 @@
+{% extends "admin/_layout.html" %}
+{% block title %}管理后台 · {{ site_title }}{% endblock %}
+{% block admin_body %}
+<section class="card">
+  <h2>★ 管理总览</h2>
+  <div class="admin-stats">
+    <div class="stat"><div class="num">{{ user_count }}</div><div class="lbl">用户</div></div>
+    <div class="stat"><div class="num">{{ req_count }}</div><div class="lbl">求助总数</div></div>
+    <div class="stat"><div class="num">{{ open_count }}</div><div class="lbl">待应助</div></div>
+    <div class="stat"><div class="num">{{ report_count }}</div><div class="lbl">举报</div></div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>关键开关</h2>
+  <p>
+    PDF 脱敏下发：<strong style="color: {% if pdf_on %}#16a34a{% else %}#dc2626{% endif %};">{% if pdf_on %}ON（脱敏版）{% else %}OFF（原件）{% endif %}</strong>
+    &nbsp; <a href="{{ base_path }}/admin/settings" class="muted small">→ 修改</a>
+  </p>
+  <p class="muted small">
+    上传时永远生成脱敏版，开关只控下发哪个文件。改后立刻在下次下载生效。
+  </p>
+</section>
+
+<section class="card muted small">
+  <h3>快速链接</h3>
+  <ul>
+    <li><a href="{{ base_path }}/admin/gift">给某用户赠送/扣减积分</a></li>
+    <li><a href="{{ base_path }}/admin/requests?status=open">查看待应助列表</a></li>
+    <li><a href="{{ base_path }}/admin/reports">处理举报</a></li>
+    <li><a href="{{ base_path }}/admin/users">用户管理（禁用恶意用户）</a></li>
+  </ul>
+</section>
+{% endblock %}

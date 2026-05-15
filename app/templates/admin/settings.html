@@ -1,0 +1,44 @@
+{% extends "admin/_layout.html" %}
+{% block title %}运行时设置 · 管理后台{% endblock %}
+{% block admin_body %}
+<section class="card">
+  <h2>⚙️ 运行时设置</h2>
+  <p class="muted small">
+    所有"业务数字 / 文案"。空白行 = 用 .env 默认值；保存后立刻生效，无需重启服务。
+    {% if saved %}<span class="alert ok" style="display:inline;padding:2px 8px;">已保存 {{ saved }} 项</span>{% endif %}
+  </p>
+  <form method="post" action="{{ base_path }}/admin/settings" class="settings-form">
+    {% for it in items %}
+      <div class="setting-row">
+        <div class="setting-meta">
+          <label for="s_{{ it.key }}"><code>{{ it.key }}</code> — {{ it.label }}</label>
+          {% if it.help %}<p class="muted small">{{ it.help }}</p>{% endif %}
+          <p class="muted small">
+            默认 <code>{{ it.default }}</code>
+            {% if it.overridden %} · <span style="color:var(--primary);">已覆盖</span>{% endif %}
+          </p>
+        </div>
+        <div class="setting-input">
+          {% if it.type == 'bool' %}
+            <label class="switch">
+              <input id="s_{{ it.key }}" type="checkbox" name="{{ it.key }}" {% if it.current %}checked{% endif %}>
+              <span class="slider"></span>
+            </label>
+          {% elif it.type == 'int' %}
+            <input id="s_{{ it.key }}" type="number" name="{{ it.key }}" value="{{ it.current }}">
+          {% else %}
+            <input id="s_{{ it.key }}" type="text" name="{{ it.key }}" value="{{ it.current }}">
+          {% endif %}
+          {% if it.overridden %}
+            <form method="post" action="{{ base_path }}/admin/settings/reset" style="display:inline;margin:0;">
+              <input type="hidden" name="key" value="{{ it.key }}">
+              <button type="submit" class="link-btn" onclick="return confirm('恢复 {{ it.key }} 为 .env 默认值？')">↺ 重置</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+    <button type="submit" class="btn primary block" style="margin-top:14px;">保存所有变更</button>
+  </form>
+</section>
+{% endblock %}

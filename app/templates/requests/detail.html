@@ -3,6 +3,7 @@
 {% block content %}
 
 {% if flash_err %}<p class="alert error">{{ flash_err }}</p>{% endif %}
+{% if flash_msg %}<p class="alert ok">{{ flash_msg }}</p>{% endif %}
 
 <section class="card">
   <div class="req-head">
@@ -147,6 +148,25 @@
 {% elif req.status == 'closed' %}
   <section class="card muted small">
     <p>已关闭。{% if is_owner %}悬赏积分已退回。{% endif %}</p>
+  </section>
+{% endif %}
+
+{# ====== 举报区 ====== #}
+{% if can_report and req.status not in ('closed', 'expired') %}
+  <section class="card muted small" style="margin-top:8px;">
+    {% if already_reported %}
+      <p>你已对此求助提交过举报，等待管理员处理。</p>
+    {% else %}
+      <details>
+        <summary style="cursor:pointer;">⚠️ 举报这条求助（疑似违规）</summary>
+        <form method="post" action="{{ base_path }}/requests/{{ req.id }}/report" style="margin-top:10px;">
+          <label>原因（必填，≤ 255 字）
+            <textarea name="reason" rows="2" maxlength="255" required placeholder="例: 不在合理使用范围 / 涉嫌侵权 / 误发..."></textarea>
+          </label>
+          <button type="submit" class="btn block" style="background:#dc2626;color:#fff;">提交举报</button>
+        </form>
+      </details>
+    {% endif %}
   </section>
 {% endif %}
 

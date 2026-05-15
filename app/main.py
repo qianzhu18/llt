@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from .db import Base, SessionLocal, engine, get_db
 from .models import HelpRequest, PointTransaction, User
 from .points import REASON_HELP_ACCEPTED, REASON_PUBLISH_DEDUCT
+from .routers import admin as admin_router
 from .routers import auth as auth_router
 from .routers import me as me_router
 from .routers import requests as requests_router
@@ -108,6 +109,7 @@ app.mount("/static", StaticFiles(directory=str(ROOT / "app" / "static")), name="
 app.include_router(auth_router.router)
 app.include_router(me_router.router)
 app.include_router(requests_router.router)
+app.include_router(admin_router.router)
 
 
 @app.exception_handler(HTTPException)
@@ -133,7 +135,7 @@ async def http_exc_handler(request: Request, exc: HTTPException):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.4.0-m3"}
+    return {"status": "ok", "version": "0.5.0-m4"}
 
 
 def _recent_activities(db: Session, limit: int = 15) -> list[dict]:

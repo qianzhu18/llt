@@ -1,0 +1,55 @@
+{% extends "admin/_layout.html" %}
+{% block title %}求助管理 · 管理后台{% endblock %}
+{% block admin_body %}
+<section class="card">
+  <div class="page-head">
+    <h2 style="margin:0;">📚 求助 ({{ total }})</h2>
+    <div class="status-filter">
+      <a href="{{ base_path }}/admin/requests" class="{% if not status_filter %}active{% endif %}">全部</a>
+      {% for code, label in status_labels.items() %}
+        <a href="{{ base_path }}/admin/requests?status={{ code }}" class="{% if status_filter == code %}active{% endif %}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr><th>ID</th><th>标题</th><th>求助人</th><th>悬赏</th><th>状态</th><th>创建</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+          <tr>
+            <td>{{ it.req.id }}</td>
+            <td>
+              <a href="{{ base_path }}/requests/{{ it.req.id }}">{{ it.req.title|truncate(50) }}</a>
+              <br><span class="muted small">{{ it.req.authors|truncate(40) }} · {{ it.req.year }}</span>
+            </td>
+            <td><span class="muted small">{{ it.nickname }}<br>{{ it.email }}</span></td>
+            <td>+{{ it.req.bounty }}</td>
+            <td><span class="status-{{ it.req.status }}">{{ status_labels.get(it.req.status, it.req.status) }}</span></td>
+            <td class="muted small">{{ it.req.created_at.strftime('%m-%d %H:%M') if it.req.created_at else '' }}</td>
+            <td>
+              {% if it.req.status not in ('closed', 'expired', 'completed') %}
+                <form method="post" action="{{ base_path }}/admin/requests/{{ it.req.id }}/close" class="inline-form"
+                      onsubmit="return confirm('强制关闭 #{{ it.req.id }} ？积分将退给 {{ it.email }}');">
+                  <input type="hidden" name="note" value="admin 手动关闭">
+                  <button type="submit" class="link-btn" style="color:#dc2626;">关闭</button>
+                </form>
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if has_next or page > 1 %}
+    <nav class="pager">
+      {% if page > 1 %}<a href="{{ base_path }}/admin/requests?page={{ page-1 }}&status={{ status_filter }}">‹ 上一页</a>{% endif %}
+      <span class="muted">第 {{ page }} 页</span>
+      {% if has_next %}<a href="{{ base_path }}/admin/requests?page={{ page+1 }}&status={{ status_filter }}">下一页 ›</a>{% endif %}
+    </nav>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "admin/_layout.html" %}
+{% block title %}举报管理 · 管理后台{% endblock %}
+{% block admin_body %}
+<section class="card">
+  <h2>🚩 举报 ({{ total }})</h2>
+  <p class="muted small">同一求助累计 ≥ REPORT_THRESHOLD 个不同举报人时，系统会自动关闭。这里展示明细。</p>
+
+  {% if not items %}
+    <p class="muted">目前没有举报记录。</p>
+  {% else %}
+    <div class="table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr><th>时间</th><th>举报人</th><th>求助</th><th>状态</th><th>原因</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for it in items %}
+            <tr>
+              <td class="muted small">{{ it.r.created_at.strftime('%m-%d %H:%M') if it.r.created_at else '' }}</td>
+              <td><code class="small">{{ it.reporter_email }}</code></td>
+              <td>
+                <a href="{{ base_path }}/requests/{{ it.req.id }}">#{{ it.req.id }} {{ it.req.title|truncate(40) }}</a>
+              </td>
+              <td><span class="status-{{ it.req.status }}">{{ status_labels.get(it.req.status, it.req.status) }}</span></td>
+              <td style="max-width:300px;">{{ it.r.reason|truncate(150) }}</td>
+              <td>
+                <form method="post" action="{{ base_path }}/admin/reports/{{ it.r.id }}/dismiss" class="inline-form"
+                      onsubmit="return confirm('忽略这条举报？');">
+                  <button type="submit" class="link-btn">忽略</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if has_next or page > 1 %}
+      <nav class="pager">
+        {% if page > 1 %}<a href="{{ base_path }}/admin/reports?page={{ page-1 }}">‹ 上一页</a>{% endif %}
+        <span class="muted">第 {{ page }} 页</span>
+        {% if has_next %}<a href="{{ base_path }}/admin/reports?page={{ page+1 }}">下一页 ›</a>{% endif %}
+      </nav>
+    {% endif %}
+  {% endif %}
+</section>
+{% endblock %}

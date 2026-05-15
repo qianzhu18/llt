@@ -14,11 +14,11 @@
 ## 🎯 立即要做的事
 
 ```
-M0 ✅ / M1 ✅ / M2 ✅ / M3 ✅ → 下一步：M4（举报机制 + 管理后台）
+M0 ✅ / M1 ✅ / M2 ✅ / M3 ✅ / M4 ✅ → 下一步：M5（SMTP + e2e 测试 + 部署优化）
 ```
 
-> **Admin 已就绪**：邮箱 `annachow250815@gmail.com` / 密码 `Wxhz123321!`（首次注册 demo 后改）。
-> 初始 200 积分（admin_gift seed），可以直接发布求助。
+> **Admin 已就绪**：邮箱 `annachow250815@gmail.com` / 密码 `Wxhz123321!`。
+> 初始 200 积分（admin_gift seed），可直接发布。已有 `/admin` 后台。
 
 ---
 
@@ -37,7 +37,7 @@ M0 ✅ / M1 ✅ / M2 ✅ / M3 ✅ → 下一步：M4（举报机制 + 管理后�
 
 ---
 
-## ✅ 已完成：M0 + M1 + M2 + M3
+## ✅ 已完成：M0 + M1 + M2 + M3 + M4
 
 ### 技术栈（已确认）
 - **Python 3.12** + **FastAPI 0.115** + **SQLAlchemy 2.0** + **Alembic**
@@ -67,16 +67,18 @@ M0 ✅ / M1 ✅ / M2 ✅ / M3 ✅ → 下一步：M4（举报机制 + 管理后�
 │   ├── points.py           # adjust_points + REASON_* 常量
 │   ├── timekit.py          # Asia/Shanghai 时区 + humanize_remaining
 │   ├── pdf_redact.py       # PyMuPDF 元数据 + 首尾页 email/IP 涂黑
-│   ├── services.py         # complete_request/expire_request/reject_upload/tick
+│   ├── services.py         # complete_request/expire_request/reject_upload/force_close_request/tick
 │   ├── routers/
 │   │   ├── auth.py         # /auth/register|verify|login|logout
 │   │   ├── me.py           # /me, /me/profile, /me/signin
-│   │   └── requests.py     # /requests + 6 个状态机 endpoint + download
+│   │   ├── requests.py     # /requests + 6 状态机 endpoint + download + report
+│   │   └── admin.py        # /admin{,/settings,/gift,/users,/requests,/reports}
 │   ├── templates/
 │   │   ├── base.html, index.html
 │   │   ├── auth/{register,login,notice}.html
 │   │   ├── me/{index,profile}.html
-│   │   └── requests/{lobby,new,detail}.html
+│   │   ├── requests/{lobby,new,detail}.html
+│   │   └── admin/{_layout,index,settings,gift,users,requests,reports}.html
 │   └── static/app.css
 ├── data/app.db             # SQLite (M3 测试数据已清,Anna 保留 200 积分)
 ├── uploads/                # raw + sanitized PDF (req{id}_h{helper}_{ts}.pdf{,.sanitized.pdf})
@@ -147,8 +149,8 @@ M0 ✅ / M1 ✅ / M2 ✅ / M3 ✅ → 下一步：M4（举报机制 + 管理后�
 | M2 | ✅ 完成 | 求助发布 + 待应助大厅 + 签到 + 个人中心扩展 + 活动流 + 频率限制 |
 | M2.5 | ✅ 完成 | 双域名支持 (hz 公开 + c 私有),per-request base_path |
 | M3 | ✅ 完成 | 完整应助流转 + PDF 脱敏 + library 沉淀 + APScheduler 自动确认/过期 |
-| **M4** | **▶ 下一个** | 举报机制 + 管理后台 (积分赠送/求助管理/用户管理/脱敏开关切换) |
-| M5 | ⬜ 待开 | 端到端测试 + 部署优化 + 邮件 SMTP 接入 |
+| M4 | ✅ 完成 | /admin 后台 + 运行时设置 + 积分赠送 + 用户/求助管理 + 举报机制(阈值自动关闭) |
+| **M5** | **▶ 下一个** | SMTP 接入(替换 stub) + e2e 测试 + 部署优化 + 性能/安全打磨 |
 
 ### M1 交付物（已完成,冒烟测试通过）
 - 注册 / 邮箱验证 stub（验证链接打印到 app.log，找它直接 `grep verify\?token /home/claude/projects/lit-share/app.log | tail`）
@@ -281,33 +283,81 @@ open ──claim──> claimed ──upload──> awaiting_confirm ──confi
 
 ---
 
-## 🚧 M4 路线图(下一个会话开干)
+### M4 交付物（已完成）
 
-核心是**管理后台 + 举报闭环**。前端基本是表格 + 按钮,后端是 `require_admin` 保护的路由 + `runtime_config.set_setting`。
+- **`/admin` 仪表板**: 4 项统计(用户/求助/待应助/举报) + PDF 开关当前态 prominent 显示 + 快捷链接
+- **`/admin/settings`** (`app/routers/admin.py` `SETTING_KNOBS` 元数据驱动): 10 个 knob 表单,bool/int/str 三种渲染,`PDF_DESENSITIZE_ENABLED` 醒目 toggle 开关。每项可单独 `↺ 重置`(删 system_settings 行 → 恢复 .env 默认)。保存后 `runtime_config` 立刻读到,下次下载立即生效
+- **`/admin/gift`**: target 接受 email 或 user_id,delta 允许负数,note 进 ledger。审计完整
+- **`/admin/users`**: 分页 + 搜索(email/nickname like),`POST /admin/users/{id}/toggle-active` 启停。不能切换自己。被禁用用户登录会 401(security.current_user 检查 is_active)
+- **`/admin/requests`**: 分页 + status 过滤 chip。`POST /admin/requests/{id}/close` 调 `services.force_close_request` 退分给 requester
+- **`/admin/reports`**: 关联 request+reporter,显示原因,可忽略(`POST /admin/reports/{id}/dismiss` 删 Report 行)
+- **`POST /requests/{id}/report`** (`routers/requests.py`): 门槛 = 累计被采纳应助 ≥ `REPORTER_MIN_HELPS`(默认 30,通过 `count(point_transactions where reason=help_accepted)` 测)。不能自举,不能重复举报。**累计 distinct reporter ≥ `REPORT_THRESHOLD` 自动 `force_close_request`**
+- **detail.html 举报区**: viewer 够格(非 owner/helper + 达 MIN_HELPS)才显示 details/summary form
+- **flash 系统**: `?msg=ok` (success) + `?err=...` (error),detail handler 接两个 alert 渲染
+
+### 已知小坑 (M5 修)
+- ⚠️ **Starlette URL-encoded form 用 latin-1 解码**,curl `-d "key=中文"` 会存成 mojibake。**浏览器没问题**(浏览器永远 percent-encode 非 ASCII)。脚本测试要用 `--data-urlencode`。M5 可以加全局 middleware 修复(读 body 后强制 UTF-8 重解析)
+- ⚠️ 上传 PDF 大小下限 1024 字节,小到不合理的测试 PDF 会被拒。真实论文 PDF 永远 >> 1KB,不是问题
+
+### 全局重要约定 (M4 新增)
+- admin 路由统一在 `app/routers/admin.py`,prefix=`/admin`,所有路由通过 router-level `dependencies=[Depends(require_admin)]` 二次保护
+- 任何 admin 触发的状态变更要走 `services.*` (gift 走 `adjust_points`,close 走 `force_close_request`),不要直接改字段
+- 加新运行时配置:`app/routers/admin.py` 的 `SETTING_KNOBS` 加一行,settings.py 加默认值,业务代码用 `runtime_config.get_setting(db, "KEY", settings.KEY, cast=...)` 读
+
+---
+
+## 🚧 M5 路线图(下一个会话开干)
+
+M0–M4 已经把功能闭环跑通了。M5 是**生产化**:把 stub 换成真实集成、补缺失的安全/可靠性,跑端到端自动化测试。
 
 ### 待开任务
-1. **`/admin` 后台首页 + 导航** (require_admin):积分赠送 / 用户列表 / 求助管理 / 运行时配置 四个区
-2. **积分赠送 `POST /admin/gift`**: 输入 email / user_id + delta + reason note,调 `adjust_points(reason=REASON_ADMIN_GIFT)`。完整审计入 ledger
-3. **用户列表 `/admin/users`**: 分页,显示 email/nickname/points/is_active/created_at;支持 toggle is_active(禁用恶意用户)
-4. **求助管理 `/admin/requests`**: 分页,任意状态过滤;支持 force-close(退分给 requester,reason=publish_refund_closed),即 `force_close_request(db, req)` (新增到 services.py)
-5. **运行时配置 `/admin/settings`**: 表单展示所有 settings.py 的字段(`SIGNIN_POINTS`/`REQUEST_TIMEOUT_DAYS`/`CONFIRM_WINDOW_HOURS`/`MAX_PDF_SIZE_MB`/`SAME_JOURNAL_MONTHLY_LIMIT`/`REPORT_THRESHOLD`/`REPORTER_MIN_HELPS`/**`PDF_DESENSITIZE_ENABLED`**);保存调 `runtime_config.set_setting`。删行恢复 .env 默认
-6. **举报机制** (Report model 已建):
-   - `POST /requests/{id}/report` (Form): 应助被采纳 ≥ REPORTER_MIN_HELPS 才允许举报,reason 必填。写 reports 行
-   - 同一 request 累计举报 ≥ REPORT_THRESHOLD 自动 `force_close_request` (在 report endpoint 或 services.tick 里)
-   - admin 后台 `/admin/reports` 查看
-7. **/admin/library** (可选): 沉淀文献列表 + 下载量;允许从 library 删除某篇
+
+1. **SMTP 接入** (`app/email_send.py`)
+   - 现状: 注册邮箱验证只打 log。M5 改成读 `SMTP_HOST/PORT/USER/PASS/FROM`,有就走真发,无就 fallback 到 log stub
+   - 用 stdlib `smtplib` + `email.message`,带 STARTTLS。失败要 fallback 而不是 500
+   - 钩子点: `app/routers/auth.py` `_send_verify_email`
+
+2. **CSRF 防护**
+   - 当前依赖 SameSite=Lax cookie + POST。够吗?对积分敏感操作(gift/force_close/confirm) M5 加 token: `<input name="_csrf" value="{{ csrf_token }}">`,verify 时校验
+   - 简单实现: 签名 cookie 写一个 token,form 渲染时注入,POST 时比对
+
+3. **速率限制 / 反爬**
+   - 注册 endpoint: 同 IP 1 分钟 ≥ 3 次拒绝
+   - login: 失败 5 次锁 5 分钟
+   - 用 stdlib + 进程内 dict 即可,多 worker 才需要 Redis
+
+4. **端到端测试** (`tests/`)
+   - pytest + httpx + 真起 uvicorn (或用 TestClient)
+   - 覆盖: 注册→验证→登录;签到幂等;发布扣分+频率限制;claim/upload/confirm 完整闭环;reject 后重新认领;tick 触发自动确认/过期;admin gift/force_close/settings;举报阈值自动关闭
+   - CI 上可以跑 sqlite,localhost 不挂 caddy
+
+5. **数据库迁移**
+   - 目前 `Base.metadata.create_all` 只创建不更新表。M5 接入 Alembic,M6 上 PostgreSQL 时无痛迁移
+   - 第一次 alembic init + autogenerate 给当前 schema 打基线
+
+6. **运维补强**
+   - logrotate: app.log 现在无 size 限制,会无限增长。加 `logrotate` 配置或 Python logging.handlers.RotatingFileHandler
+   - backup: SQLite 数据 + uploads/ + library/ 定期 rsync 到本地或 OSS
+   - Prometheus metrics?(可选,M6)
+
+7. **小修小补**
+   - Starlette form latin-1 mojibake: 加 middleware 拦截 application/x-www-form-urlencoded 请求,把 body 重解析为 UTF-8
+   - 日志 mojibake: `_handler = logging.StreamHandler(stream=sys.stdout)` + `stream.reconfigure(encoding='utf-8')`
+   - "我的应助" 不显示被驳回的求助(claimed_by 已清空); M5 可以加 attachment 关联回查或 RejectLog 表
+   - 上传 PDF 最小尺寸 1024 字节降到 256 字节(单页 PDF 不一定那么大)
+   - admin force-close 是否补偿 helper(已上传的情况):目前不补偿,M5 视情况决定
 
 ### 关键设计点
-- **是否允许 admin 弹层切换脱敏开关**:这是用户明确要求的关键功能。`/admin/settings` 必须把 `PDF_DESENSITIZE_ENABLED` 做成 prominent toggle,改后立刻生效(下次 download 即看到效果)
-- **`reporter` 限制**: `REPORTER_MIN_HELPS` 是「累计被采纳过 N 次的用户才能举报」。查询条件: `func.count(distinct(help_requests.id)) where claimed_by=user and status=completed >= N`
-- **审计日志**: admin 操作(gift/force-close/settings change)都应写一条 ledger 或 admin_audit_log。M4 至少保证积分变动有 ledger 行,settings 变动有 system_settings.updated_at
-- **Force-close 注意**: 如果 status 是 claimed / awaiting_confirm,可能涉及 helper 已经工作过。是否给 helper 也补偿?**默认不**,但 admin 可以另起 gift 操作
+- **SMTP fallback**: 真发邮件可能失败(限流/被拒/超时),不应让注册流程 500。失败时 catch 后 logger.warning + fallback 到 log 打印链接。用户可以看后台日志(M6 给 admin 加邮件队列 UI)
+- **CSRF token**: 不要发明轮子,follow OWASP "synchronizer token pattern"。或者更新到 Starlette 的内建 (如果 0.41+ 有)
+- **rate limit storage**: 进程内字典加 threading.Lock 就够 demo 用。生产想多 worker 时切 Redis
+- **测试 DB 隔离**: 测试用临时 SQLite 文件(tmp_path fixture),不能共用 data/app.db
+- **Alembic baseline**: `alembic revision --autogenerate -m "M0-M4 schema"`,然后 `alembic stamp head` 标记现有 DB 为已升级到 baseline
 
 ---
 
 **下一个会话开干前**:
 1. `cat /home/claude/projects/lit-share/HANDOFF.md`(你正在看)
-2. `cat /home/claude/inbox/文献互助平台.md`(需求原文)
-3. `cd /home/claude/projects/lit-share && git log --oneline`
-4. 用 admin 账号登录 demo,看看现状
-5. 从 `/admin/settings` (改运行时配置) 开始,因为它最简单且能立即被其他功能复用
+2. `cd /home/claude/projects/lit-share && git log --oneline`
+3. admin 账号 login demo 确认 /admin 后台跑通
+4. 从 SMTP 接入开始(改动最隔离),然后写 pytest 把回归保护建好,再做 CSRF/rate-limit

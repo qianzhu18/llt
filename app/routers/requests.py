@@ -13,14 +13,15 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Attachment, HelpRequest, LibraryPaper, User
+from ..models import Attachment, HelpRequest, LibraryPaper, PointTransaction, Report, User
 from ..pdf_redact import safe_desensitize
-from ..points import REASON_PUBLISH_DEDUCT, InsufficientPoints, adjust_points
+from ..points import REASON_HELP_ACCEPTED, REASON_PUBLISH_DEDUCT, InsufficientPoints, adjust_points
 from ..runtime_config import as_bool, as_int, get_setting
 from ..security import current_user, require_login
 from ..services import (
     UPLOADS_DIR,
     complete_request,
+    force_close_request,
     latest_attachment,
     library_files,
     reject_upload,
@@ -216,11 +217,17 @@ def _flash_redirect(request: Request, req_id: int, err: str):
     return redirect(request, f"/requests/{req_id}?err={quote(err)}")
 
 
+def _flash_ok(request: Request, req_id: int, msg: str):
+    from urllib.parse import quote
+    return redirect(request, f"/requests/{req_id}?msg={quote(msg)}")
+
+
 @router.get("/{req_id}")
 def detail(
     request: Request,
     req_id: int,
     err: str = "",
+    msg: str = "",
     db: Session = Depends(get_db),
     viewer: Optional[User] = Depends(current_user),
 ):
@@ -252,6 +259,29 @@ def detail(
         db, "PDF_DESENSITIZE_ENABLED", settings.PDF_DESENSITIZE_ENABLED, cast=as_bool,
     )
 
+    # Report-button visibility: viewer is not anonymous, not owner/helper,
+    # and has accumulated REPORTER_MIN_HELPS accepted helps.
+    can_report = False
+    already_reported = False
+    if viewer is not None and viewer.id != req.requester_id and viewer.id != (req.claimed_by or 0):
+        min_helps = get_setting(
+            db, "REPORTER_MIN_HELPS", settings.REPORTER_MIN_HELPS, cast=as_int,
+        )
+        helps_count = db.scalar(
+            select(func.count(PointTransaction.id)).where(
+                PointTransaction.user_id == viewer.id,
+                PointTransaction.reason == REASON_HELP_ACCEPTED,
+            )
+        ) or 0
+        can_report = helps_count >= min_helps
+        if can_report:
+            already_reported = db.scalar(
+                select(func.count(Report.id)).where(
+                    Report.request_id == req.id,
+                    Report.reporter_id == viewer.id,
+                )
+            ) > 0
+
     return render(
         request, "requests/detail.html",
         current_user=viewer,
@@ -263,7 +293,10 @@ def detail(
         is_helper=is_helper,
         max_mb=max_mb,
         desensitize_on=desensitize_on,
+        can_report=can_report,
+        already_reported=already_reported,
         flash_err=err,
+        flash_msg=msg,
     )
 
 
@@ -419,6 +452,62 @@ def reject(
     reject_upload(db, req, reason.strip()[:500])
     db.commit()
     return redirect(request, f"/requests/{req_id}")
+
+
+@router.post("/{req_id}/report")
+def report(
+    request: Request,
+    req_id: int,
+    reason: str = Form(...),
+    user: User = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    req = db.get(HelpRequest, req_id)
+    if req is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    if req.requester_id == user.id:
+        return _flash_redirect(request, req_id, "不能举报自己发布的求助")
+    reason = reason.strip()
+    if not reason:
+        return _flash_redirect(request, req_id, "请填写举报原因")
+
+    min_helps = get_setting(db, "REPORTER_MIN_HELPS", settings.REPORTER_MIN_HELPS, cast=as_int)
+    helps_count = db.scalar(
+        select(func.count(PointTransaction.id)).where(
+            PointTransaction.user_id == user.id,
+            PointTransaction.reason == REASON_HELP_ACCEPTED,
+        )
+    ) or 0
+    if helps_count < min_helps:
+        return _flash_redirect(request, req_id, f"举报门槛：需累计被采纳应助 ≥ {min_helps} 次（你目前 {helps_count}）")
+
+    already = db.scalar(
+        select(func.count(Report.id)).where(
+            Report.request_id == req.id, Report.reporter_id == user.id,
+        )
+    ) or 0
+    if already:
+        return _flash_redirect(request, req_id, "你已举报过这条求助")
+
+    db.add(Report(request_id=req.id, reporter_id=user.id, reason=reason[:255]))
+    db.flush()
+
+    threshold = get_setting(db, "REPORT_THRESHOLD", settings.REPORT_THRESHOLD, cast=as_int)
+    distinct_reporters = db.scalar(
+        select(func.count(func.distinct(Report.reporter_id))).where(Report.request_id == req.id)
+    ) or 0
+
+    auto_closed = False
+    if distinct_reporters >= threshold and req.status not in ("closed", "expired", "completed"):
+        force_close_request(
+            db, req, note=f"自动关闭：举报达 {distinct_reporters}/{threshold} 次",
+        )
+        auto_closed = True
+
+    db.commit()
+    logger.info("report req #%d by user %d (count=%d, auto_close=%s)",
+                req.id, user.id, distinct_reporters, auto_closed)
+    return _flash_ok(request, req_id, "举报已提交" + ("，求助已自动关闭" if auto_closed else ""))
 
 
 @router.get("/{req_id}/download")

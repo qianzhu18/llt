@@ -20,6 +20,7 @@ from .models import Attachment, HelpRequest, LibraryPaper
 from .pdf_redact import safe_desensitize
 from .points import (
     REASON_HELP_ACCEPTED,
+    REASON_PUBLISH_REFUND_CLOSED,
     REASON_PUBLISH_REFUND_TIMEOUT,
     adjust_points,
 )
@@ -150,6 +151,23 @@ def reject_upload(db: Session, req: HelpRequest, reason: str = "") -> None:
     req.claimed_at = None
     req.uploaded_at = None
     req.confirm_deadline = None
+
+
+def force_close_request(db: Session, req: HelpRequest, note: str = "admin closed") -> None:
+    """Admin-initiated close. Refunds bounty for any not-yet-completed state.
+    Used both by /admin/requests/{id}/close AND auto-close after report threshold."""
+    if req.status in ("closed", "expired", "completed"):
+        return
+    if req.status in ("open", "claimed", "awaiting_confirm"):
+        adjust_points(
+            db, req.requester_id, req.bounty, REASON_PUBLISH_REFUND_CLOSED,
+            ref_request_id=req.id, note=note[:255],
+            allow_negative=True,
+        )
+    req.status = "closed"
+    req.completed_at = now_utc_naive()
+    logger.info("force_closed req #%d (was %s, refund %d): %s",
+                req.id, req.status, req.bounty, note)
 
 
 def tick(db: Session) -> dict:
