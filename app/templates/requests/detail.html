@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block title %}{{ req.title }} · {{ site_title }}{% endblock %}
 {% block content %}
+
+{% if flash_err %}<p class="alert error">{{ flash_err }}</p>{% endif %}
+
 <section class="card">
   <div class="req-head">
     <h2 class="req-title">{{ req.title }}</h2>
@@ -13,24 +16,139 @@
     {% if req.extra %}<dt>补充</dt><dd style="white-space:pre-wrap;">{{ req.extra }}</dd>{% endif %}
     <dt>求助人</dt><dd>{{ requester_nickname }}{% if is_owner %}（我）{% endif %}</dd>
     <dt>状态</dt><dd><span class="status-{{ req.status }}">{{ {'open':'待应助','claimed':'已认领','awaiting_confirm':'待确认','completed':'已完结','closed':'已关闭','expired':'已过期'}.get(req.status, req.status) }}</span></dd>
-    {% if req.status == 'open' %}<dt>截止</dt><dd>{{ remaining }}</dd>{% endif %}
-    {% if helper_nickname %}<dt>应助人</dt><dd>{{ helper_nickname }}</dd>{% endif %}
+    {% if remaining %}
+      <dt>{% if req.status == 'open' %}截止{% elif req.status == 'awaiting_confirm' %}自动确认{% endif %}</dt>
+      <dd>{{ remaining }}{% if req.status == 'awaiting_confirm' %} 后自动确认{% endif %}</dd>
+    {% endif %}
+    {% if helper_nickname %}<dt>应助人</dt><dd>{{ helper_nickname }}{% if is_helper %}（我）{% endif %}</dd>{% endif %}
   </dl>
 </section>
 
-<section class="card muted small">
-  {% if req.status == 'open' %}
-    {% if current_user and not is_owner %}
-      <p>M3 接入后这里会出现「我来应助」按钮（上传 PDF）。</p>
-    {% elif is_owner %}
-      <p>等待应助中。如果想撤回，可在 M3 上线后操作。</p>
-    {% else %}
+{# ====== 状态 + 角色 ====== #}
+
+{# ---- open ---- #}
+{% if req.status == 'open' %}
+  {% if not current_user %}
+    <section class="card muted small">
       <p><a href="{{ base_path }}/auth/login?next={{ base_path }}/requests/{{ req.id }}">登录</a>后即可应助。</p>
-    {% endif %}
-  {% elif req.status == 'completed' %}
-    <p>已完结。M3 上线后可从共享文献库免费下载。</p>
+    </section>
+  {% elif is_owner %}
+    <section class="card muted small">
+      <p>等待应助中。求助者无法主动取消（M4 会加管理员关闭功能）。</p>
+    </section>
+  {% else %}
+    <section class="card">
+      <h3 style="margin-bottom:8px;">🤝 我来应助</h3>
+      <p class="muted small">认领后请尽快上传 PDF（≤ {{ max_mb }}MB），完成应助可获得 <strong>+{{ req.bounty }}</strong> 积分。</p>
+      <form method="post" action="{{ base_path }}/requests/{{ req.id }}/claim" style="margin-top:12px;">
+        <button type="submit" class="btn primary block">我来应助 (+{{ req.bounty }} 积分)</button>
+      </form>
+    </section>
   {% endif %}
-</section>
+
+{# ---- claimed ---- #}
+{% elif req.status == 'claimed' %}
+  {% if is_helper %}
+    <section class="card">
+      <h3 style="margin-bottom:10px;">📤 上传 PDF</h3>
+      <p class="muted small">
+        最大 {{ max_mb }}MB。
+        {% if desensitize_on %}
+          系统会自动脱敏（清除元数据 + 涂黑首尾页可见邮箱/IP）。
+        {% else %}
+          当前为原件模式（admin 关闭了脱敏，将以原始 PDF 提供下载）。
+        {% endif %}
+      </p>
+      <form method="post" action="{{ base_path }}/requests/{{ req.id }}/upload"
+            enctype="multipart/form-data" style="margin-top:12px;">
+        <label>选择 PDF 文件
+          <input type="file" name="pdf" accept="application/pdf,.pdf" required>
+        </label>
+        <button type="submit" class="btn primary block">上传 PDF</button>
+      </form>
+      <form method="post" action="{{ base_path }}/requests/{{ req.id }}/release"
+            style="margin-top:12px;"
+            onsubmit="return confirm('放弃应助后任务将回到待应助大厅，其他人可重新认领。确定吗？');">
+        <button type="submit" class="btn link-btn" style="color:var(--muted);">放弃应助（任务释放）</button>
+      </form>
+    </section>
+  {% elif is_owner %}
+    <section class="card muted small">
+      <p>{{ helper_nickname }} 已认领，正在准备 PDF。</p>
+    </section>
+  {% else %}
+    <section class="card muted small">
+      <p>已被 {{ helper_nickname }} 认领。</p>
+    </section>
+  {% endif %}
+
+{# ---- awaiting_confirm ---- #}
+{% elif req.status == 'awaiting_confirm' %}
+  {% if is_owner %}
+    <section class="card">
+      <h3 style="margin-bottom:8px;">✅ 确认应助</h3>
+      <p class="muted small">
+        {{ helper_nickname }} 已上传 PDF。请确认内容无误后点击「确认接收」，
+        <strong>+{{ req.bounty }}</strong> 积分将立刻转给应助者。
+        <br>{{ remaining }} 后系统会自动确认。
+      </p>
+      <div class="action-row" style="margin-top:12px;">
+        <a href="{{ base_path }}/requests/{{ req.id }}/download" class="btn secondary" target="_blank">📄 预览下载</a>
+        <form method="post" action="{{ base_path }}/requests/{{ req.id }}/confirm" class="inline-form">
+          <button type="submit" class="btn primary">确认接收</button>
+        </form>
+      </div>
+      <details style="margin-top:14px;">
+        <summary class="muted small" style="cursor:pointer;">驳回（要求重新上传）</summary>
+        <form method="post" action="{{ base_path }}/requests/{{ req.id }}/reject" style="margin-top:10px;">
+          <label>驳回原因（可选）
+            <textarea name="reason" rows="3" maxlength="500" placeholder="例: 文件损坏 / 不是同一篇 / 缺页..."></textarea>
+          </label>
+          <button type="submit" class="btn block" style="background:#dc2626;color:#fff;">驳回，任务回到大厅</button>
+        </form>
+      </details>
+    </section>
+  {% elif is_helper %}
+    <section class="card">
+      <p>已上传 PDF，等待求助者确认。</p>
+      <p class="muted small">{{ remaining }} 后系统会自动确认（积分自动到账）。</p>
+      <p style="margin-top:8px;">
+        <a href="{{ base_path }}/requests/{{ req.id }}/download" target="_blank">📄 查看我上传的 PDF</a>
+      </p>
+    </section>
+  {% else %}
+    <section class="card muted small">
+      <p>已上传 PDF，等待求助者确认。</p>
+    </section>
+  {% endif %}
+
+{# ---- completed ---- #}
+{% elif req.status == 'completed' %}
+  <section class="card">
+    <p>已完结。文献已沉淀到共享文献库，欢迎下载。</p>
+    {% if current_user %}
+      <p style="margin-top:12px;">
+        <a href="{{ base_path }}/requests/{{ req.id }}/download" class="btn primary">📥 下载 PDF{% if desensitize_on %}（脱敏版）{% else %}（原件）{% endif %}</a>
+      </p>
+    {% else %}
+      <p style="margin-top:12px;">
+        <a href="{{ base_path }}/auth/login?next={{ base_path }}/requests/{{ req.id }}" class="btn secondary">登录后下载</a>
+      </p>
+    {% endif %}
+  </section>
+
+{# ---- expired ---- #}
+{% elif req.status == 'expired' %}
+  <section class="card muted small">
+    <p>求助已过期。{% if is_owner %}悬赏积分已全额退回到你的账户。{% endif %}</p>
+  </section>
+
+{# ---- closed ---- #}
+{% elif req.status == 'closed' %}
+  <section class="card muted small">
+    <p>已关闭。{% if is_owner %}悬赏积分已退回。{% endif %}</p>
+  </section>
+{% endif %}
 
 <p class="muted small" style="text-align:center;margin-top:18px;">
   <a href="{{ base_path }}/requests">← 返回大厅</a>

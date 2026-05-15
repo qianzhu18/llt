@@ -14,10 +14,11 @@
 ## 🎯 立即要做的事
 
 ```
-M0 ✅ / M1 ✅ / M2 ✅ → 下一步：M3（应助流转 + PDF 脱敏开关 + 48h 自动确认）
+M0 ✅ / M1 ✅ / M2 ✅ / M3 ✅ → 下一步：M4（举报机制 + 管理后台）
 ```
 
-> 用户（Anna，`annachow250815@gmail.com`）**尚未注册**。Admin 名额留着等她首次注册时自动激活。
+> **Admin 已就绪**：邮箱 `annachow250815@gmail.com` / 密码 `Wxhz123321!`（首次注册 demo 后改）。
+> 初始 200 积分（admin_gift seed），可以直接发布求助。
 
 ---
 
@@ -36,7 +37,7 @@ M0 ✅ / M1 ✅ / M2 ✅ → 下一步：M3（应助流转 + PDF 脱敏开关 + 
 
 ---
 
-## ✅ 已完成：M0 + M1 + M2
+## ✅ 已完成：M0 + M1 + M2 + M3
 
 ### 技术栈（已确认）
 - **Python 3.12** + **FastAPI 0.115** + **SQLAlchemy 2.0** + **Alembic**
@@ -45,39 +46,41 @@ M0 ✅ / M1 ✅ / M2 ✅ → 下一步：M3（应助流转 + PDF 脱敏开关 + 
 - **PyMuPDF**（PDF 处理，M3 用）
 - **SQLite 默认**，`DATABASE_URL` 切换 MySQL/PG。已装 `pymysql`、`psycopg[binary]` 驱动
 
-### 项目结构（M2 后）
+### 项目结构（M3 后）
 ```
 /home/claude/projects/lit-share/
 ├── .env / .env.example
-├── requirements.txt        # bcrypt 直接用,不走 passlib
+├── requirements.txt        # bcrypt 直接用 + apscheduler + pymupdf
 ├── run.sh
 ├── HANDOFF.md              # ← 你正在看的文件
 ├── .venv/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py             # FastAPI 入口 + 首页活动流 + 401→login 跳转
+│   ├── main.py             # FastAPI 入口 + lifespan 启停 APScheduler + 首页活动流
 │   ├── settings.py         # Pydantic Settings (bootstrap 配置)
 │   ├── db.py               # 引擎工厂 + SessionLocal + get_db
 │   ├── models.py           # ORM,BigInt 变体跨 DB
-│   ├── security.py         # bcrypt + 签名 cookie + current_user/require_login
-│   ├── templating.py       # render() + base_path_of(request) (从 scope.root_path 取)
-│   ├── urls.py             # public_url/redirect/strip_base 助手 — 每请求 base_path 感知
-│   ├── runtime_config.py   # get_setting(db, key, default, cast) — system_settings 读写
-│   ├── points.py           # adjust_points + REASON_* 常量 + InsufficientPoints
+│   ├── security.py         # bcrypt + 签名 cookie + current_user/require_login/require_admin
+│   ├── templating.py       # render() + base_path_of(request)
+│   ├── urls.py             # public_url/redirect/strip_base 助手
+│   ├── runtime_config.py   # get_setting(db, key, default, cast) — system_settings
+│   ├── points.py           # adjust_points + REASON_* 常量
 │   ├── timekit.py          # Asia/Shanghai 时区 + humanize_remaining
+│   ├── pdf_redact.py       # PyMuPDF 元数据 + 首尾页 email/IP 涂黑
+│   ├── services.py         # complete_request/expire_request/reject_upload/tick
 │   ├── routers/
-│   │   ├── __init__.py
 │   │   ├── auth.py         # /auth/register|verify|login|logout
 │   │   ├── me.py           # /me, /me/profile, /me/signin
-│   │   └── requests.py     # /requests, /requests/new, /requests/{id}
+│   │   └── requests.py     # /requests + 6 个状态机 endpoint + download
 │   ├── templates/
 │   │   ├── base.html, index.html
 │   │   ├── auth/{register,login,notice}.html
 │   │   ├── me/{index,profile}.html
 │   │   └── requests/{lobby,new,detail}.html
-│   └── static/app.css      # 学术蓝 + 表单 + 卡片 + 状态徽章 + 流水
-├── data/app.db             # SQLite (M2 测试数据已清空)
-└── uploads/                # M3 应助 PDF 落地点
+│   └── static/app.css
+├── data/app.db             # SQLite (M3 测试数据已清,Anna 保留 200 积分)
+├── uploads/                # raw + sanitized PDF (req{id}_h{helper}_{ts}.pdf{,.sanitized.pdf})
+└── library/                # 沉淀的共享文献,按 paper id 编号 ({id}.pdf + {id}.sanitized.pdf)
 ```
 
 ### 已建的 7 张 ORM 表（`app/models.py`）
@@ -142,9 +145,10 @@ M0 ✅ / M1 ✅ / M2 ✅ → 下一步：M3（应助流转 + PDF 脱敏开关 + 
 | M0 | ✅ 完成 | 项目脚手架 + 部署反代 |
 | M1 | ✅ 完成 | 用户系统 + 首页 + 个人中心壳 |
 | M2 | ✅ 完成 | 求助发布 + 待应助大厅 + 签到 + 个人中心扩展 + 活动流 + 频率限制 |
-| **M3** | **▶ 下一个** | 应助流转 + PDF 脱敏(开关) + 48h 自动确认 |
-| M4 | ⬜ 待开 | 举报机制 + 管理后台 |
-| M5 | ⬜ 待开 | 端到端测试 + 部署上线 |
+| M2.5 | ✅ 完成 | 双域名支持 (hz 公开 + c 私有),per-request base_path |
+| M3 | ✅ 完成 | 完整应助流转 + PDF 脱敏 + library 沉淀 + APScheduler 自动确认/过期 |
+| **M4** | **▶ 下一个** | 举报机制 + 管理后台 (积分赠送/求助管理/用户管理/脱敏开关切换) |
+| M5 | ⬜ 待开 | 端到端测试 + 部署优化 + 邮件 SMTP 接入 |
 
 ### M1 交付物（已完成,冒烟测试通过）
 - 注册 / 邮箱验证 stub（验证链接打印到 app.log，找它直接 `grep verify\?token /home/claude/projects/lit-share/app.log | tail`）
@@ -228,44 +232,82 @@ TaskList  # claude code 内置工具
 
 ---
 
-## 🚧 M3 路线图（下一个会话开干）
+### M3 交付物（已完成,完整流程冒烟通过）
 
-核心是把求助从 `open` 流转到 `completed`，涉及 PDF 上传、脱敏、自动确认。
-
-### 状态机
+**状态机**
 ```
 open ──claim──> claimed ──upload──> awaiting_confirm ──confirm──> completed
-   │              │                     │            ╲
-   │              └──release──> open    │             └─48h无操作→ 自动确认
-   │              (放弃，可重新认领)      │
-   │                                    └──reject──> claimed (任务回到应助者)
-   └─REQUEST_TIMEOUT_DAYS 后未认领──> expired (退分给 requester)
+  │               │                       │       ╲
+  │               └──release──> open      │        └─tick(48h)→ 自动 confirm
+  │              (helper 放弃)             │
+  │                                       └──reject──> open
+  └─tick(7d 后)──> expired (退分给 requester)        (整个求助回大厅,helper 失去 claim)
 ```
 
-### 待开任务
-1. **`POST /requests/{id}/claim`**: 把 status open→claimed，记 claimed_by + claimed_at。同一用户不能认领自己的求助。已认领的不能再 claim
-2. **`POST /requests/{id}/release`**: 应助者放弃，claimed→open，清 claimed_*
-3. **`POST /requests/{id}/upload`** (multipart): 上传 PDF。校验 size ≤ MAX_PDF_SIZE_MB(默认 50)。落 uploads/{req_id}_{helper_id}_{ts}.pdf。读 `PDF_DESENSITIZE_ENABLED` 决定是否脱敏：用 PyMuPDF 重写元数据(author/title 清空) + 扫描首尾页文本去掉单位/邮箱/IP(正则匹配)，输出到 sanitized_path。写 Attachment 行，状态 claimed→awaiting_confirm，记 uploaded_at + confirm_deadline=now+CONFIRM_WINDOW_HOURS(默认 48)
-4. **`POST /requests/{id}/confirm`**: 求助者确认接收。把 bounty `adjust_points` 转给 helper(reason=help_accepted)，**沉淀到 library_papers**（避免重复求助）。状态 awaiting_confirm→completed，写 library_paper_id 回 help_requests
-5. **`POST /requests/{id}/reject`**: 求助者驳回。状态回到 claimed，clear uploaded_at/confirm_deadline (helper 可再次上传)
-6. **`GET /requests/{id}/download`**: 已完结才允许下载。owner / helper / 已完结的所有人都能下。增 library_papers.download_count
-7. **APScheduler 后台任务**: 每分钟扫一次：
-   - `request_deadline < now` 且 status=open → 标 expired，退分 requester
-   - `confirm_deadline < now` 且 status=awaiting_confirm → 自动确认 (走 confirm 逻辑)
-8. **admin 切换 `PDF_DESENSITIZE_ENABLED`**: M4 才做 UI，M3 让 runtime_config 能读到就够了
-9. **/me 扩展**: "我的应助" 区显示已认领但未上传的、待求助者确认的、被驳回的
+**6 个 endpoint** (`app/routers/requests.py`)
+- `POST /requests/{id}/claim` — 认领,owner 不能自认领
+- `POST /requests/{id}/release` — 放弃,只允许 helper
+- `POST /requests/{id}/upload` — multipart,校验 magic+size,上传时**总是**生成脱敏版,写 Attachment
+- `POST /requests/{id}/confirm` — owner 确认,转积分给 helper,沉淀到 library(去重)
+- `POST /requests/{id}/reject` — owner 驳回(可填原因记到 app log),清 helper claim,status 回 open
+- `GET /requests/{id}/download` — completed 任何登录用户可下;awaiting_confirm 仅 owner+helper
 
-### 关键设计点
-- **PDF 脱敏开关**：用户已确认是「关键功能」，admin 后台可一键切换原件/脱敏。不要把脱敏硬编码到上传流程，先 `runtime_config.get_setting(db, "PDF_DESENSITIZE_ENABLED", settings.PDF_DESENSITIZE_ENABLED, as_bool)` 判断
-- **库去重**：confirm 时 `LibraryPaper.title+authors+year` 作为查重 key（normalize 后），命中就不重复入库，直接关联现有 `library_paper_id`
-- **下载策略**：M3 走 FastAPI `FileResponse` 直接发；流量大了再上 nginx X-Accel-Redirect
-- **48h scheduler**: APScheduler 已在 requirements 里。在 `app/main.py` 启动 BackgroundScheduler，跑 `tick()` 任务，跨进程并发是单 uvicorn worker 所以不冲突。多 worker 再切到外部 cron
+**服务层** (`app/services.py`) — `complete_request`/`expire_request`/`reject_upload`/`tick`,**手动 endpoint 和 scheduler 共用**
+
+**PDF 脱敏** (`app/pdf_redact.py`):
+- 元数据清空(title/author/keywords/...) → 最可靠的 PII 通道
+- 首尾页 email/IP 正则搜索 + PyMuPDF `add_redact_annot` 涂黑(永久毁原内容)
+- 保存用 `garbage=4` 删孤儿对象,脱敏字节不可从 PDF stream 找回
+- Caveat: search_for 文字断行 / 连字符会漏。M4 可加 OCR 或更激进扫描
+
+**文件布局**:
+- `uploads/req{id}_h{helper}_{ts}.pdf` — 原版
+- `uploads/req{id}_h{helper}_{ts}.sanitized.pdf` — 脱敏版(总是生成)
+- `library/{paper_id}.pdf` — 沉淀的原版
+- `library/{paper_id}.sanitized.pdf` — 沉淀的脱敏版
+
+**下载策略**: `PDF_DESENSITIZE_ENABLED` 控制**下发**哪个文件,不控制是否生成。admin 切换开关零延迟生效(M4 给 UI)
+
+**APScheduler tick** (`app/main.py` lifespan):
+- 60s 跑一次,每次扫两组: open & request_deadline 过期 → `expire_request`;awaiting_confirm & confirm_deadline 过期 → `complete_request`
+- daemon thread,单 worker 安全。多 worker 时改外部 cron
+
+**库去重** (`services.find_library_match`): 用 `func.lower(title)+lower(authors)+year` 完全匹配。命中复用 `library_paper_id`,不重复落盘
+
+### 全局重要约定 (M3 新增)
+- 积分变动只能走 `points.adjust_points`,**绝对不要**直接 `user.points += x`
+- 状态机转换只能走 `services.*` helpers,不要在 route 里乱改 status — 否则手动/auto 路径会跑偏
+- 上传后总是生成脱敏版,即使 admin 开关关闭。开关只控**下发**
 
 ---
 
-**下一个会话开干前**：
-1. `cat /home/claude/projects/lit-share/HANDOFF.md`（你正在看）
-2. `cat /home/claude/inbox/文献互助平台.md`（需求原文）
+## 🚧 M4 路线图(下一个会话开干)
+
+核心是**管理后台 + 举报闭环**。前端基本是表格 + 按钮,后端是 `require_admin` 保护的路由 + `runtime_config.set_setting`。
+
+### 待开任务
+1. **`/admin` 后台首页 + 导航** (require_admin):积分赠送 / 用户列表 / 求助管理 / 运行时配置 四个区
+2. **积分赠送 `POST /admin/gift`**: 输入 email / user_id + delta + reason note,调 `adjust_points(reason=REASON_ADMIN_GIFT)`。完整审计入 ledger
+3. **用户列表 `/admin/users`**: 分页,显示 email/nickname/points/is_active/created_at;支持 toggle is_active(禁用恶意用户)
+4. **求助管理 `/admin/requests`**: 分页,任意状态过滤;支持 force-close(退分给 requester,reason=publish_refund_closed),即 `force_close_request(db, req)` (新增到 services.py)
+5. **运行时配置 `/admin/settings`**: 表单展示所有 settings.py 的字段(`SIGNIN_POINTS`/`REQUEST_TIMEOUT_DAYS`/`CONFIRM_WINDOW_HOURS`/`MAX_PDF_SIZE_MB`/`SAME_JOURNAL_MONTHLY_LIMIT`/`REPORT_THRESHOLD`/`REPORTER_MIN_HELPS`/**`PDF_DESENSITIZE_ENABLED`**);保存调 `runtime_config.set_setting`。删行恢复 .env 默认
+6. **举报机制** (Report model 已建):
+   - `POST /requests/{id}/report` (Form): 应助被采纳 ≥ REPORTER_MIN_HELPS 才允许举报,reason 必填。写 reports 行
+   - 同一 request 累计举报 ≥ REPORT_THRESHOLD 自动 `force_close_request` (在 report endpoint 或 services.tick 里)
+   - admin 后台 `/admin/reports` 查看
+7. **/admin/library** (可选): 沉淀文献列表 + 下载量;允许从 library 删除某篇
+
+### 关键设计点
+- **是否允许 admin 弹层切换脱敏开关**:这是用户明确要求的关键功能。`/admin/settings` 必须把 `PDF_DESENSITIZE_ENABLED` 做成 prominent toggle,改后立刻生效(下次 download 即看到效果)
+- **`reporter` 限制**: `REPORTER_MIN_HELPS` 是「累计被采纳过 N 次的用户才能举报」。查询条件: `func.count(distinct(help_requests.id)) where claimed_by=user and status=completed >= N`
+- **审计日志**: admin 操作(gift/force-close/settings change)都应写一条 ledger 或 admin_audit_log。M4 至少保证积分变动有 ledger 行,settings 变动有 system_settings.updated_at
+- **Force-close 注意**: 如果 status 是 claimed / awaiting_confirm,可能涉及 helper 已经工作过。是否给 helper 也补偿?**默认不**,但 admin 可以另起 gift 操作
+
+---
+
+**下一个会话开干前**:
+1. `cat /home/claude/projects/lit-share/HANDOFF.md`(你正在看)
+2. `cat /home/claude/inbox/文献互助平台.md`(需求原文)
 3. `cd /home/claude/projects/lit-share && git log --oneline`
-4. 注册 anna 拿到 admin → 注册一个 helper 测试号 → 跑通完整一次求助
-5. 开 M3 从 claim/release 两个最小动作入手
+4. 用 admin 账号登录 demo,看看现状
+5. 从 `/admin/settings` (改运行时配置) 开始,因为它最简单且能立即被其他功能复用

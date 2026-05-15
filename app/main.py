@@ -1,7 +1,10 @@
-"""FastAPI entry. Mounts routers and serves the homepage."""
+"""FastAPI entry. Mounts routers, starts the background scheduler, serves the homepage."""
+import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -9,15 +12,29 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
-from .db import Base, engine, get_db
+from .db import Base, SessionLocal, engine, get_db
 from .models import HelpRequest, PointTransaction, User
 from .points import REASON_HELP_ACCEPTED, REASON_PUBLISH_DEDUCT
 from .routers import auth as auth_router
 from .routers import me as me_router
 from .routers import requests as requests_router
 from .security import current_user
+from .services import tick
 from .settings import settings
 from .templating import render
+
+
+# Send our app loggers to stderr so they land in systemd's journal / app.log.
+# Avoid touching root config so we don't fight with uvicorn's own logging.
+_handler = logging.StreamHandler()
+_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+_app_logger = logging.getLogger("lit-share")
+_app_logger.setLevel(logging.INFO)
+if not _app_logger.handlers:
+    _app_logger.addHandler(_handler)
+_app_logger.propagate = False
+
+logger = logging.getLogger("lit-share.main")
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -32,11 +49,46 @@ from . import models  # noqa: F401  (register mappers)
 Base.metadata.create_all(bind=engine)
 
 
+def _scheduled_tick():
+    """Periodic state advance. Runs in APScheduler's thread pool, opens a
+    fresh session, never raises (errors are logged)."""
+    db = SessionLocal()
+    try:
+        result = tick(db)
+        if result["expired"] or result["auto_confirmed"]:
+            logger.info("tick: %s", result)
+    except Exception:  # noqa: BLE001
+        logger.exception("scheduled tick failed")
+    finally:
+        db.close()
+
+
+_scheduler = BackgroundScheduler(daemon=True, timezone="UTC")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    _scheduler.add_job(
+        _scheduled_tick, "interval",
+        seconds=60, id="tick",
+        coalesce=True, max_instances=1,
+        next_run_time=None,
+    )
+    _scheduler.start()
+    logger.info("scheduler started (tick interval=60s)")
+    try:
+        yield
+    finally:
+        _scheduler.shutdown(wait=False)
+        logger.info("scheduler stopped")
+
+
 app = FastAPI(
     title=settings.SITE_TITLE,
     docs_url="/api-docs" if settings.DEBUG else None,
     redoc_url=None,
     openapi_url="/openapi.json" if settings.DEBUG else None,
+    lifespan=lifespan,
 )
 
 
@@ -81,7 +133,7 @@ async def http_exc_handler(request: Request, exc: HTTPException):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.3.0-m2"}
+    return {"status": "ok", "version": "0.4.0-m3"}
 
 
 def _recent_activities(db: Session, limit: int = 15) -> list[dict]:

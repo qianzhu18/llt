@@ -4,5 +4,6 @@ __pycache__/
 .env
 data/
 uploads/
+library/
 *.log
 .DS_Store

@@ -223,6 +223,28 @@ footer {
 .activity-list .actor { color: var(--primary); font-weight: 600; margin-right: 4px; }
 .activity-list .obj   { color: var(--text); }
 
+/* file input */
+.form-card input[type="file"] {
+  padding: 8px;
+  font-size: 13px;
+}
+.form-card input[type="file"]::-webkit-file-upload-button,
+.form-card input[type="file"]::file-selector-button {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-right: 10px;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* details (reject reason dropdown) */
+details summary { outline: none; }
+details summary::-webkit-details-marker { color: var(--muted); }
+details[open] summary { margin-bottom: 4px; }
+
 /* pager */
 .pager {
   display: flex; justify-content: center; gap: 16px; align-items: center;
