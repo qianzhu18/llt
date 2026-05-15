@@ -4,18 +4,27 @@
 <section class="card">
   <h2>⚙️ 运行时设置</h2>
   <p class="muted small">
-    所有"业务数字 / 文案"。空白行 = 用 .env 默认值；保存后立刻生效，无需重启服务。
+    所有"业务数字 / 文案 / 邮件"。空白行 = 用 .env 默认值；保存后立刻生效，无需重启服务。
     {% if saved %}<span class="alert ok" style="display:inline;padding:2px 8px;">已保存 {{ saved }} 项</span>{% endif %}
   </p>
   <form method="post" action="{{ base_path }}/admin/settings" class="settings-form">
+    {% set current_group = namespace(name='') %}
     {% for it in items %}
+      {% if it.group and it.group != current_group.name %}
+        {% set current_group.name = it.group %}
+        <h3 class="setting-group-title">{{ it.group }}</h3>
+      {% endif %}
       <div class="setting-row">
         <div class="setting-meta">
           <label for="s_{{ it.key }}"><code>{{ it.key }}</code> — {{ it.label }}</label>
           {% if it.help %}<p class="muted small">{{ it.help }}</p>{% endif %}
           <p class="muted small">
-            默认 <code>{{ it.default }}</code>
-            {% if it.overridden %} · <span style="color:var(--primary);">已覆盖</span>{% endif %}
+            {% if it.type == 'password' %}
+              {% if it.overridden %}<span style="color:var(--primary);">已设置（密码加密未显示）</span>{% else %}未设置，使用 .env 默认{% endif %}
+            {% else %}
+              默认 <code>{{ it.default }}</code>
+              {% if it.overridden %} · <span style="color:var(--primary);">已覆盖</span>{% endif %}
+            {% endif %}
           </p>
         </div>
         <div class="setting-input">
@@ -26,6 +35,9 @@
             </label>
           {% elif it.type == 'int' %}
             <input id="s_{{ it.key }}" type="number" name="{{ it.key }}" value="{{ it.current }}">
+          {% elif it.type == 'password' %}
+            <input id="s_{{ it.key }}" type="password" name="{{ it.key }}" autocomplete="new-password"
+                   placeholder="{% if it.overridden %}(已设置，留空保持不变){% else %}(填入新密码){% endif %}">
           {% else %}
             <input id="s_{{ it.key }}" type="text" name="{{ it.key }}" value="{{ it.current }}">
           {% endif %}

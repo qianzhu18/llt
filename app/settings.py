@@ -11,10 +11,11 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./data/app.db"
 
     SMTP_HOST: str = ""
-    SMTP_PORT: int = 587
+    SMTP_PORT: int = 465
     SMTP_USER: str = ""
     SMTP_PASS: str = ""
     SMTP_FROM: str = "noreply@xpro.work"
+    SMTP_USE_SSL: bool = True
 
     SIGNIN_POINTS: int = 10
     REQUEST_TIMEOUT_DAYS: int = 7

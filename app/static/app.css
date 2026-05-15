@@ -313,6 +313,15 @@ details[open] summary { margin-bottom: 4px; }
   background: var(--primary); color: #fff; border-color: var(--primary);
 }
 
+/* settings form group titles */
+.settings-form .setting-group-title {
+  font-size: 14px; font-weight: 600; color: var(--primary);
+  margin: 16px 0 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.settings-form .setting-group-title:first-child { margin-top: 8px; }
+
 /* settings form rows */
 .settings-form .setting-row {
   display: grid; grid-template-columns: 1fr auto; gap: 12px;

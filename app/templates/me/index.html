@@ -41,7 +41,7 @@
 <section class="card">
   <h2>🤝 我的应助</h2>
   {% if not my_helps %}
-    <p class="muted">还没应助过。<a href="{{ base_path }}/requests">去大厅找一篇</a>。（M3 起可认领上传）</p>
+    <p class="muted">还没应助过。<a href="{{ base_path }}/requests">去大厅找一篇</a>，认领后上传 PDF 即可获得悬赏积分。</p>
   {% else %}
     <ul class="my-list">
       {% for r in my_helps %}

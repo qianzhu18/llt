@@ -1,8 +1,4 @@
-"""Auth flows: register (with email-verify stub), verify, login, logout.
-
-Email verification is stubbed — the token URL is printed to the app log instead of
-sent. When SMTP_HOST is configured later, swap _send_verify_email() for a real send.
-"""
+"""Auth flows: register (real-or-stub SMTP), verify, login, logout."""
 from __future__ import annotations
 
 import logging
@@ -14,7 +10,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
+from ..email_send import send_verify_email
 from ..models import User
+from ..runtime_config import get_setting
 from ..security import (
     clear_session_cookie,
     current_user,
@@ -42,11 +40,6 @@ def _normalize_email(raw: str) -> Optional[str]:
         return info.normalized.lower()
     except EmailNotValidError:
         return None
-
-
-def _send_verify_email(email: str, link: str) -> None:
-    """Stub: log the verify link prominently so the dev / admin can copy it."""
-    logger.warning("== EMAIL VERIFY STUB ==> to=%s link=%s", email, link)
 
 
 def _abs_url(request: Request, path: str) -> str:
@@ -129,16 +122,30 @@ def register_submit(
 
     token = make_verify_token(norm_email)
     link = _abs_url(request, f"/auth/verify?token={token}")
-    _send_verify_email(norm_email, link)
+    site_title = get_setting(db, "SITE_TITLE", settings.SITE_TITLE)
+    result = send_verify_email(db, norm_email, link, site_title)
+
+    if result["mode"] == "smtp":
+        message = (
+            f"已向 {norm_email} 发送验证邮件，请查收（可能在垃圾箱）。"
+            f"点击邮件中的链接即可激活账号。"
+        )
+    elif result["mode"] == "log":
+        message = (
+            f"系统暂未配置 SMTP，验证链接已打印到服务器日志。请联系管理员获取，"
+            f"或在 /admin/settings 配置 SMTP 后重新申请。"
+        )
+    else:  # error
+        message = (
+            f"邮件发送遇到问题：{result['detail']}。验证链接已打印到服务器日志，"
+            f"请联系管理员协助。"
+        )
 
     return render(
         request, "auth/notice.html",
         current_user=None,
         title="注册成功，请验证邮箱",
-        message=(
-            f"我们已向 {norm_email} 发送验证邮件（当前为开发 stub，"
-            f"验证链接已打印到服务器日志）。点击链接后即可登录。"
-        ),
+        message=message,
     )
 
 
@@ -212,14 +219,18 @@ def login_submit(
             status_code=403,
         )
     if not user.email_verified:
-        # Regenerate the verify link so a stuck user can recover from the log.
+        # Resend the verify link so a stuck user can recover.
         token = make_verify_token(user.email)
         link = _abs_url(request, f"/auth/verify?token={token}")
-        _send_verify_email(user.email, link)
+        site_title = get_setting(db, "SITE_TITLE", settings.SITE_TITLE)
+        result = send_verify_email(db, user.email, link, site_title)
+        if result["mode"] == "smtp":
+            err = "邮箱尚未验证，新的验证链接已发送到邮箱，请查收"
+        else:
+            err = "邮箱尚未验证，验证链接已打印到服务器日志（SMTP 未配置或发送失败，请联系管理员）"
         return render(
             request, "auth/login.html", current_user=None,
-            error="邮箱尚未验证，新的验证链接已发送（已打印到服务器日志）",
-            form_email=email,
+            error=err, form_email=email,
             status_code=403,
         )
 

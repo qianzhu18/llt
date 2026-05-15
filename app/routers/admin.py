@@ -37,16 +37,29 @@ router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(requir
 # ---------------------------------------------------------------------------
 
 SETTING_KNOBS = [
-    {"key": "SIGNIN_POINTS",            "type": "int",  "label": "每日签到积分",   "help": "用户每日签到一次获得的积分"},
-    {"key": "REQUEST_TIMEOUT_DAYS",     "type": "int",  "label": "求助超时天数",   "help": "无人应助多少天后自动退分(scheduler 扫描)"},
-    {"key": "CONFIRM_WINDOW_HOURS",     "type": "int",  "label": "自动确认窗口(小时)", "help": "应助上传后,求助者不操作多少小时自动确认"},
-    {"key": "MAX_PDF_SIZE_MB",          "type": "int",  "label": "PDF 上传上限 (MB)"},
-    {"key": "SAME_JOURNAL_MONTHLY_LIMIT","type": "int",  "label": "同期刊月度上限", "help": "单用户单期刊每月最多发布的求助数"},
-    {"key": "REPORT_THRESHOLD",         "type": "int",  "label": "举报自动关闭阈值", "help": "单求助累计被举报多少次自动关闭"},
-    {"key": "REPORTER_MIN_HELPS",       "type": "int",  "label": "举报人门槛",     "help": "应助被采纳累计多少次的用户才能举报"},
-    {"key": "PDF_DESENSITIZE_ENABLED",  "type": "bool", "label": "PDF 脱敏下发",   "help": "ON: 下发脱敏版(去元数据+涂黑PII);OFF: 下发原版。仅影响下发,上传时永远生成脱敏版"},
-    {"key": "SITE_TITLE",               "type": "str",  "label": "站点名称",       "help": "导航/页面标题"},
-    {"key": "SITE_SLOGAN",              "type": "str",  "label": "站点 slogan",    "help": "首页大标题下的副标题"},
+    # --- 积分 / 时限 ---
+    {"key": "SIGNIN_POINTS",            "type": "int",  "label": "每日签到积分",   "help": "用户每日签到一次获得的积分", "group": "积分 / 时限"},
+    {"key": "REQUEST_TIMEOUT_DAYS",     "type": "int",  "label": "求助超时天数",   "help": "无人应助多少天后自动退分(scheduler 扫描)", "group": "积分 / 时限"},
+    {"key": "CONFIRM_WINDOW_HOURS",     "type": "int",  "label": "自动确认窗口(小时)", "help": "应助上传后,求助者不操作多少小时自动确认", "group": "积分 / 时限"},
+    {"key": "MAX_PDF_SIZE_MB",          "type": "int",  "label": "PDF 上传上限 (MB)", "group": "积分 / 时限"},
+    {"key": "SAME_JOURNAL_MONTHLY_LIMIT","type": "int",  "label": "同期刊月度上限", "help": "单用户单期刊每月最多发布的求助数", "group": "积分 / 时限"},
+
+    # --- 内容 / 安全 ---
+    {"key": "REPORT_THRESHOLD",         "type": "int",  "label": "举报自动关闭阈值", "help": "单求助累计被举报多少次自动关闭", "group": "内容 / 安全"},
+    {"key": "REPORTER_MIN_HELPS",       "type": "int",  "label": "举报人门槛",     "help": "应助被采纳累计多少次的用户才能举报", "group": "内容 / 安全"},
+    {"key": "PDF_DESENSITIZE_ENABLED",  "type": "bool", "label": "PDF 脱敏下发",   "help": "ON: 下发脱敏版(去元数据+涂黑PII);OFF: 下发原版。仅影响下发,上传时永远生成脱敏版", "group": "内容 / 安全"},
+
+    # --- 站点文案 ---
+    {"key": "SITE_TITLE",               "type": "str",  "label": "站点名称",       "help": "导航/页面标题", "group": "站点文案"},
+    {"key": "SITE_SLOGAN",              "type": "str",  "label": "站点 slogan",    "help": "首页大标题下的副标题", "group": "站点文案"},
+
+    # --- 邮件 SMTP ---
+    {"key": "SMTP_HOST",                "type": "str",  "label": "SMTP 服务器",   "help": "例: smtp.qq.com / smtp.gmail.com / smtp.163.com。留空则注册验证链接只打印到日志", "group": "邮件 SMTP"},
+    {"key": "SMTP_PORT",                "type": "int",  "label": "SMTP 端口",     "help": "SSL 通常 465,STARTTLS 通常 587", "group": "邮件 SMTP"},
+    {"key": "SMTP_USE_SSL",             "type": "bool", "label": "使用 SSL",      "help": "ON: SMTPS(端口 465);OFF: STARTTLS(端口 587)", "group": "邮件 SMTP"},
+    {"key": "SMTP_USER",                "type": "str",  "label": "SMTP 用户名",   "help": "通常就是发件邮箱地址", "group": "邮件 SMTP"},
+    {"key": "SMTP_PASS",                "type": "password", "label": "SMTP 密码 / 授权码", "help": "QQ/网易等需要在邮箱后台开启 SMTP 并使用「授权码」,不是登录密码", "group": "邮件 SMTP"},
+    {"key": "SMTP_FROM",                "type": "str",  "label": "发件人地址",     "help": "出现在 From 头。不填则使用 SMTP_USER", "group": "邮件 SMTP"},
 ]
 
 
@@ -140,7 +153,9 @@ async def settings_save(
         if existing is None or existing.value != raw:
             set_setting(db, key, raw)
             changed += 1
-            logger.info("settings: %s -> %r (admin %s)", key, raw, user.email)
+            # Never log password values — they're stored only.
+            shown = "***" if knob["type"] == "password" else repr(raw)
+            logger.info("settings: %s -> %s (admin %s)", key, shown, user.email)
 
     db.commit()
     return redirect(request, f"/admin/settings?saved={changed}")
