@@ -21,7 +21,19 @@
 
 <section class="card">
   <h2>实时动态</h2>
-  <p class="muted">（M2 接入真实数据）</p>
+  {% if activities %}
+    <ul class="activity-list">
+      {% for a in activities %}
+        <li>
+          <span class="actor">{{ a.actor }}</span>
+          <span class="muted">{{ a.verb }}</span>
+          {% if a.object %}<span class="obj">《{{ a.object }}》</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted small">还没有动态。{% if not current_user %}<a href="{{ base_path }}/auth/register">注册</a>后{% endif %}发布一个求助试试。</p>
+  {% endif %}
 </section>
 
 <section class="card small muted">

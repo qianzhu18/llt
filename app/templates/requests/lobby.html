@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}待应助大厅 · {{ site_title }}{% endblock %}
+{% block content %}
+<section class="page-head">
+  <h2>📥 待应助大厅</h2>
+  <p class="muted small">共 {{ total }} 条待应助</p>
+  {% if current_user %}
+    <a href="{{ base_path }}/requests/new" class="btn primary">📝 发布求助</a>
+  {% else %}
+    <a href="{{ base_path }}/auth/login?next={{ base_path }}/requests/new" class="btn primary">登录后发布</a>
+  {% endif %}
+</section>
+
+{% if not items %}
+  <section class="card muted">
+    <p>暂时没有等待应助的求助。{% if current_user %}<a href="{{ base_path }}/requests/new">发起第一个</a>？{% endif %}</p>
+  </section>
+{% endif %}
+
+{% for it in items %}
+  <a class="card req-card" href="{{ base_path }}/requests/{{ it.req.id }}">
+    <div class="req-head">
+      <h3 class="req-title">{{ it.req.title }}</h3>
+      <span class="bounty">+{{ it.req.bounty }}</span>
+    </div>
+    <p class="meta">
+      <span>{{ it.req.authors }}</span>
+      {% if it.req.journal %}<span>·</span><span>{{ it.req.journal }}</span>{% endif %}
+      <span>·</span><span>{{ it.req.year }}</span>
+    </p>
+    <p class="meta-foot muted small">
+      <span>求助人 {{ it.requester_nickname }}</span>
+      <span>·</span>
+      <span>{{ it.remaining }}</span>
+    </p>
+  </a>
+{% endfor %}
+
+{% if has_next or page > 1 %}
+  <nav class="pager">
+    {% if page > 1 %}<a href="{{ base_path }}/requests?page={{ page-1 }}">‹ 上一页</a>{% endif %}
+    <span class="muted">第 {{ page }} 页</span>
+    {% if has_next %}<a href="{{ base_path }}/requests?page={{ page+1 }}">下一页 ›</a>{% endif %}
+  </nav>
+{% endif %}
+{% endblock %}

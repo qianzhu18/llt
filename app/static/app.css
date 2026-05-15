@@ -123,3 +123,109 @@ footer {
 .kv { display: grid; grid-template-columns: 80px 1fr; gap: 6px 14px; font-size: 14px; }
 .kv dt { color: var(--muted); }
 .kv dd { color: var(--text); margin: 0; }
+
+/* page head */
+.page-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 14px 0 6px; }
+.page-head h2 { margin-right: auto; }
+
+/* request cards (lobby + detail) */
+.req-card { display: block; text-decoration: none; color: inherit; }
+.req-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+.req-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+.req-title { font-size: 16px; flex: 1; color: var(--text); margin: 0; }
+.bounty {
+  background: var(--primary); color: #fff;
+  border-radius: 999px; padding: 2px 10px;
+  font-size: 13px; font-weight: 700; white-space: nowrap;
+}
+.meta { color: var(--text); font-size: 14px; }
+.meta > * { margin-right: 4px; }
+.meta-foot { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* status badges */
+.status-open, .status-claimed, .status-awaiting_confirm,
+.status-completed, .status-closed, .status-expired {
+  display: inline-block; padding: 1px 8px; border-radius: 4px;
+  font-size: 12px; font-weight: 600;
+}
+.status-open            { background: #dbeafe; color: #1e40af; }
+.status-claimed         { background: #fef3c7; color: #92400e; }
+.status-awaiting_confirm{ background: #fde68a; color: #78350f; }
+.status-completed       { background: #d1fae5; color: #065f46; }
+.status-closed          { background: #e5e7eb; color: #4b5563; }
+.status-expired         { background: #fee2e2; color: #991b1b; }
+@media (prefers-color-scheme: dark) {
+  .status-open            { background: #1e3a5f; color: #93c5fd; }
+  .status-claimed         { background: #4a3520; color: #fbbf24; }
+  .status-awaiting_confirm{ background: #5a3818; color: #fbbf24; }
+  .status-completed       { background: #1a3d2a; color: #6ee7b7; }
+  .status-closed          { background: #2a2f3a; color: #cbd5e1; }
+  .status-expired         { background: #4a1f1f; color: #fca5a5; }
+}
+
+/* bounty radio group */
+.form-wide { max-width: 540px; }
+.form-card textarea {
+  display: block; width: 100%;
+  padding: 10px 12px; margin-top: 4px;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 15px; font-family: inherit; resize: vertical;
+}
+.bounty-set { border: none; padding: 0; margin: 0 0 14px; }
+.bounty-set legend { font-size: 14px; color: var(--muted); margin-bottom: 6px; }
+.bounty-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.bounty-opt {
+  flex: 1; min-width: 64px; margin: 0;
+  cursor: pointer;
+}
+.bounty-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.bounty-opt span {
+  display: block; text-align: center;
+  padding: 10px 6px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text);
+  font-weight: 600; font-size: 15px;
+  transition: all .1s;
+}
+.bounty-opt input:checked + span {
+  background: var(--primary); color: #fff; border-color: var(--primary);
+}
+
+/* personal center extras */
+.action-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.action-row .btn { padding: 9px 14px; font-size: 14px; }
+.action-row button[disabled] { opacity: .55; cursor: default; }
+.my-list { list-style: none; padding: 0; }
+.my-list li {
+  display: flex; gap: 10px; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.my-list li:last-child { border-bottom: none; }
+.my-list a { color: var(--text); text-decoration: none; flex: 1; }
+.my-list a:hover { color: var(--primary); }
+.tx-list { list-style: none; padding: 0; }
+.tx-list li {
+  display: flex; gap: 10px; align-items: center;
+  padding: 6px 0; font-size: 14px;
+}
+.tx-delta { font-weight: 700; min-width: 48px; }
+.tx-delta.plus  { color: #16a34a; }
+.tx-delta.minus { color: #dc2626; }
+.tx-reason { flex: 1; color: var(--text); }
+
+/* activity feed */
+.activity-list { list-style: none; padding: 0; }
+.activity-list li {
+  padding: 6px 0; font-size: 14px;
+  border-bottom: 1px dashed var(--border);
+}
+.activity-list li:last-child { border-bottom: none; }
+.activity-list .actor { color: var(--primary); font-weight: 600; margin-right: 4px; }
+.activity-list .obj   { color: var(--text); }
+
+/* pager */
+.pager {
+  display: flex; justify-content: center; gap: 16px; align-items: center;
+  padding: 20px 0; font-size: 14px;
+}
+.pager a { color: var(--primary); text-decoration: none; }

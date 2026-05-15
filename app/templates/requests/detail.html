@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ req.title }} · {{ site_title }}{% endblock %}
+{% block content %}
+<section class="card">
+  <div class="req-head">
+    <h2 class="req-title">{{ req.title }}</h2>
+    <span class="bounty">+{{ req.bounty }}</span>
+  </div>
+  <dl class="kv">
+    <dt>作者</dt><dd>{{ req.authors }}</dd>
+    {% if req.journal %}<dt>期刊</dt><dd>{{ req.journal }}</dd>{% endif %}
+    <dt>年份</dt><dd>{{ req.year }}</dd>
+    {% if req.extra %}<dt>补充</dt><dd style="white-space:pre-wrap;">{{ req.extra }}</dd>{% endif %}
+    <dt>求助人</dt><dd>{{ requester_nickname }}{% if is_owner %}（我）{% endif %}</dd>
+    <dt>状态</dt><dd><span class="status-{{ req.status }}">{{ {'open':'待应助','claimed':'已认领','awaiting_confirm':'待确认','completed':'已完结','closed':'已关闭','expired':'已过期'}.get(req.status, req.status) }}</span></dd>
+    {% if req.status == 'open' %}<dt>截止</dt><dd>{{ remaining }}</dd>{% endif %}
+    {% if helper_nickname %}<dt>应助人</dt><dd>{{ helper_nickname }}</dd>{% endif %}
+  </dl>
+</section>
+
+<section class="card muted small">
+  {% if req.status == 'open' %}
+    {% if current_user and not is_owner %}
+      <p>M3 接入后这里会出现「我来应助」按钮（上传 PDF）。</p>
+    {% elif is_owner %}
+      <p>等待应助中。如果想撤回，可在 M3 上线后操作。</p>
+    {% else %}
+      <p><a href="{{ base_path }}/auth/login?next={{ base_path }}/requests/{{ req.id }}">登录</a>后即可应助。</p>
+    {% endif %}
+  {% elif req.status == 'completed' %}
+    <p>已完结。M3 上线后可从共享文献库免费下载。</p>
+  {% endif %}
+</section>
+
+<p class="muted small" style="text-align:center;margin-top:18px;">
+  <a href="{{ base_path }}/requests">← 返回大厅</a>
+</p>
+{% endblock %}

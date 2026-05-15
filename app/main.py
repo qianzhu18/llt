@@ -6,10 +6,15 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from .db import Base, engine
-from .models import User
+from sqlalchemy import desc, select
+from sqlalchemy.orm import Session
+
+from .db import Base, engine, get_db
+from .models import HelpRequest, PointTransaction, User
+from .points import REASON_HELP_ACCEPTED, REASON_PUBLISH_DEDUCT
 from .routers import auth as auth_router
 from .routers import me as me_router
+from .routers import requests as requests_router
 from .security import current_user
 from .settings import settings
 from .templating import render
@@ -39,6 +44,7 @@ app.mount("/static", StaticFiles(directory=str(ROOT / "app" / "static")), name="
 
 app.include_router(auth_router.router)
 app.include_router(me_router.router)
+app.include_router(requests_router.router)
 
 
 @app.exception_handler(HTTPException)
@@ -59,9 +65,36 @@ async def http_exc_handler(request: Request, exc: HTTPException):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.2.0-m1"}
+    return {"status": "ok", "version": "0.3.0-m2"}
+
+
+def _recent_activities(db: Session, limit: int = 15) -> list[dict]:
+    """Recent publish + accept events for the homepage ticker."""
+    rows = db.execute(
+        select(PointTransaction, User.nickname, HelpRequest.title)
+        .join(User, User.id == PointTransaction.user_id)
+        .join(HelpRequest, HelpRequest.id == PointTransaction.ref_request_id, isouter=True)
+        .where(PointTransaction.reason.in_([REASON_PUBLISH_DEDUCT, REASON_HELP_ACCEPTED]))
+        .order_by(desc(PointTransaction.created_at))
+        .limit(limit)
+    ).all()
+    out = []
+    for tx, nick, title in rows:
+        if tx.reason == REASON_PUBLISH_DEDUCT:
+            out.append({"actor": nick, "verb": "求助了", "object": title or "?", "ts": tx.created_at})
+        elif tx.reason == REASON_HELP_ACCEPTED:
+            out.append({"actor": nick, "verb": "完成了一次应助", "object": "", "ts": tx.created_at})
+    return out
 
 
 @app.get("/", response_class=HTMLResponse)
-def index(request: Request, user: Optional[User] = Depends(current_user)):
-    return render(request, "index.html", current_user=user)
+def index(
+    request: Request,
+    user: Optional[User] = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    return render(
+        request, "index.html",
+        current_user=user,
+        activities=_recent_activities(db),
+    )

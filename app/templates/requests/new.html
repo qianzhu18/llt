@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}发布求助 · {{ site_title }}{% endblock %}
+{% block content %}
+<section class="card form-card form-wide">
+  <h2>📝 发布文献求助</h2>
+  <p class="muted small">
+    当前积分 <strong>{{ current_user.points }}</strong> · 求助超时 {{ timeout_days }} 天后自动退分
+  </p>
+  {% if error %}<p class="alert error">{{ error }}</p>{% endif %}
+  <form method="post" action="{{ base_path }}/requests/new">
+    <label>文献标题 *
+      <input type="text" name="title" required maxlength="500" value="{{ form.title or '' }}">
+    </label>
+    <label>作者 *（多人用逗号分隔）
+      <input type="text" name="authors" required maxlength="500" value="{{ form.authors or '' }}">
+    </label>
+    <label>期刊 / 会议（选填，同期刊月度上限）
+      <input type="text" name="journal" maxlength="300" value="{{ form.journal or '' }}">
+    </label>
+    <label>发表年份 *
+      <input type="number" name="year" required min="1800" max="{{ current_year + 1 }}" value="{{ form.year or current_year }}">
+    </label>
+    <label>补充信息（卷、期、页码等）
+      <textarea name="extra" rows="3" maxlength="2000">{{ form.extra or '' }}</textarea>
+    </label>
+    <fieldset class="bounty-set">
+      <legend>悬赏积分 *</legend>
+      <div class="bounty-options">
+        {% for b in bounty_options %}
+          <label class="bounty-opt">
+            <input type="radio" name="bounty" value="{{ b }}" required
+                   {% if form and form.bounty == b %}checked{% elif not form and b == bounty_options[0] %}checked{% endif %}>
+            <span>+{{ b }}</span>
+          </label>
+        {% endfor %}
+      </div>
+      <p class="muted small">超时无人应助 → 全额退回；完成应助 → 转给应助者</p>
+    </fieldset>
+    <button type="submit" class="btn primary block">发布</button>
+  </form>
+  <p class="muted small"><a href="{{ base_path }}/requests">取消，返回大厅</a></p>
+</section>
+{% endblock %}

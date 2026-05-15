@@ -6,16 +6,68 @@
   <dl class="kv">
     <dt>邮箱</dt><dd>{{ current_user.email }}{% if current_user.email_verified %} ✓{% endif %}</dd>
     <dt>昵称</dt><dd>{{ current_user.nickname or '（未设置）' }}</dd>
-    <dt>积分</dt><dd><strong>{{ current_user.points }}</strong></dd>
+    <dt>积分</dt><dd><strong style="font-size:18px;">{{ current_user.points }}</strong></dd>
     <dt>身份</dt><dd>{% if current_user.is_admin %}管理员 ★{% else %}普通用户{% endif %}</dd>
-    <dt>注册时间</dt><dd>{{ current_user.created_at.strftime('%Y-%m-%d %H:%M') if current_user.created_at else '-' }}</dd>
   </dl>
-  <p style="margin-top:14px;">
+
+  <div class="action-row">
+    <form method="post" action="{{ base_path }}/me/signin" class="inline-form">
+      <button type="submit" class="btn primary" {% if signed_today %}disabled{% endif %}>
+        {% if signed_today %}✓ 今日已签到{% else %}🌟 每日签到 +{{ signin_points }}{% endif %}
+      </button>
+    </form>
     <a href="{{ base_path }}/me/profile" class="btn secondary">修改昵称</a>
-  </p>
+    <a href="{{ base_path }}/requests/new" class="btn secondary">发布求助</a>
+  </div>
 </section>
 
-<section class="card muted small">
-  <p>M2 起，这里会展示：我发布的求助、我的应助记录、签到入口、积分流水。</p>
+<section class="card">
+  <h2>📤 我发布的求助</h2>
+  {% if not my_requests %}
+    <p class="muted">还没发布过。<a href="{{ base_path }}/requests/new">发起第一个？</a></p>
+  {% else %}
+    <ul class="my-list">
+      {% for r in my_requests %}
+        <li>
+          <a href="{{ base_path }}/requests/{{ r.id }}">{{ r.title }}</a>
+          <span class="status-{{ r.status }} small">{{ {'open':'待应助','claimed':'已认领','awaiting_confirm':'待确认','completed':'已完结','closed':'已关闭','expired':'已过期'}.get(r.status, r.status) }}</span>
+          <span class="muted small">+{{ r.bounty }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>🤝 我的应助</h2>
+  {% if not my_helps %}
+    <p class="muted">还没应助过。<a href="{{ base_path }}/requests">去大厅找一篇</a>。（M3 起可认领上传）</p>
+  {% else %}
+    <ul class="my-list">
+      {% for r in my_helps %}
+        <li>
+          <a href="{{ base_path }}/requests/{{ r.id }}">{{ r.title }}</a>
+          <span class="status-{{ r.status }} small">{{ {'claimed':'已认领','awaiting_confirm':'待确认','completed':'已完结','closed':'已关闭'}.get(r.status, r.status) }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>💰 最近积分流水</h2>
+  {% if not recent_tx %}
+    <p class="muted">还没有积分变动。签到、发布、应助都会在这里留痕。</p>
+  {% else %}
+    <ul class="tx-list">
+      {% for t in recent_tx %}
+        <li>
+          <span class="tx-delta {% if t.delta > 0 %}plus{% else %}minus{% endif %}">{% if t.delta > 0 %}+{% endif %}{{ t.delta }}</span>
+          <span class="tx-reason">{{ {'signin':'签到','publish_deduct':'发布求助','publish_refund_timeout':'超时退回','publish_refund_closed':'关闭退回','help_accepted':'应助被采纳','admin_gift':'管理员赠送'}.get(t.reason, t.reason) }}</span>
+          <span class="muted small">{{ t.created_at.strftime('%m-%d %H:%M') if t.created_at else '' }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
 </section>
 {% endblock %}
