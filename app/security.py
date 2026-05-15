@@ -62,12 +62,13 @@ def read_verify_token(token: str) -> Optional[str]:
         return None
 
 
-def cookie_path() -> str:
-    # Cookies must use the public-facing path, not FastAPI's internal "/".
-    return settings.APP_BASE_PATH or "/"
+def cookie_path(request: Request) -> str:
+    """Cookie path must match the public base; otherwise browsers won't replay it.
+    Derived from X-Forwarded-Prefix on this request (see app.main middleware)."""
+    return request.scope.get("root_path", "") or "/"
 
 
-def set_session_cookie(response, user_id: int) -> None:
+def set_session_cookie(response, user_id: int, request: Request) -> None:
     response.set_cookie(
         SESSION_COOKIE,
         make_session_token(user_id),
@@ -75,12 +76,12 @@ def set_session_cookie(response, user_id: int) -> None:
         httponly=True,
         samesite="lax",
         secure=not settings.DEBUG,
-        path=cookie_path(),
+        path=cookie_path(request),
     )
 
 
-def clear_session_cookie(response) -> None:
-    response.delete_cookie(SESSION_COOKIE, path=cookie_path())
+def clear_session_cookie(response, request: Request) -> None:
+    response.delete_cookie(SESSION_COOKIE, path=cookie_path(request))
 
 
 def current_user(request: Request, db: Session = Depends(get_db)) -> Optional[User]:

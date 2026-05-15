@@ -8,8 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
-from fastapi.responses import RedirectResponse
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -20,6 +19,7 @@ from ..security import current_user, require_login
 from ..settings import settings
 from ..templating import render
 from ..timekit import CN_TZ, humanize_remaining, now_utc_naive
+from ..urls import redirect
 
 router = APIRouter(prefix="/requests", tags=["requests"])
 
@@ -30,11 +30,6 @@ PAGE_SIZE = 20
 CURRENT_YEAR = datetime.now(CN_TZ).year
 MIN_YEAR = 1800
 MAX_YEAR = CURRENT_YEAR + 1
-
-
-def _redirect(path: str) -> RedirectResponse:
-    full = (settings.APP_BASE_PATH or "") + path
-    return RedirectResponse(url=full or "/", status_code=status.HTTP_303_SEE_OTHER)
 
 
 def _normalize_journal(raw: str) -> str:
@@ -196,7 +191,7 @@ def new_submit(
         return _err(f"积分不足（需 {bounty},当前 {user.points}）。可先签到攒积分。")
 
     db.commit()
-    return _redirect(f"/requests/{new_req.id}")
+    return redirect(request, f"/requests/{new_req.id}")
 
 
 # ---------------------------------------------------------------------------

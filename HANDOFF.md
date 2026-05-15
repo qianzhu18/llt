@@ -2,7 +2,12 @@
 
 > 给下一个 Claude 会话：读完这份文档，你就有了所有上下文。
 > 用户：Anna（annachow250815@gmail.com）
-> 服务器：腾讯云 VM，公网 IP `43.173.104.146`，域名 `c.xpro.work`
+> 服务器：腾讯云 VM，公网 IP `43.173.104.146`
+>
+> **公开 demo**：https://hz.xpro.work/ （根路径，无 basic auth，可分享）
+> **私有入口**：https://c.xpro.work/preview/lit/ （anna 凭据 basic auth + /preview/lit 前缀）
+>
+> 两域名同一个 uvicorn 进程、同一个 DB。Caddy 通过 `X-Forwarded-Prefix` 头告诉应用各自的公共 base path。
 
 ---
 
@@ -55,7 +60,8 @@ M0 ✅ / M1 ✅ / M2 ✅ → 下一步：M3（应助流转 + PDF 脱敏开关 + 
 │   ├── db.py               # 引擎工厂 + SessionLocal + get_db
 │   ├── models.py           # ORM,BigInt 变体跨 DB
 │   ├── security.py         # bcrypt + 签名 cookie + current_user/require_login
-│   ├── templating.py       # render() 自动注入 base_path/current_user
+│   ├── templating.py       # render() + base_path_of(request) (从 scope.root_path 取)
+│   ├── urls.py             # public_url/redirect/strip_base 助手 — 每请求 base_path 感知
 │   ├── runtime_config.py   # get_setting(db, key, default, cast) — system_settings 读写
 │   ├── points.py           # adjust_points + REASON_* 常量 + InsufficientPoints
 │   ├── timekit.py          # Asia/Shanghai 时区 + humanize_remaining
@@ -89,17 +95,18 @@ M0 ✅ / M1 ✅ / M2 ✅ → 下一步：M3（应助流转 + PDF 脱敏开关 + 
 
 ### 已部署
 - **systemd 服务**：`lit-share.service`（uvicorn 跑在 127.0.0.1:10800）
-- **Caddy 反代**：`https://c.xpro.work/preview/lit/*` → :10800（用 `handle` **不剥前缀**，配合 FastAPI 的 `root_path=/preview/lit`）
+- **Caddy 反代**：
+  - `https://c.xpro.work/preview/lit/*` → :10800 (`handle_path` 剥前缀 + `header_up X-Forwarded-Prefix /preview/lit`，basic auth)
+  - `https://hz.xpro.work/*` → :10800 (根路径，无 auth，不发 `X-Forwarded-Prefix` 头 → 应用 base_path 为空)
 - **Dashboard 自动发现**：`https://c.xpro.work/dash` 会显示"→ 预览"链接到 lit-share
 
 ### 重要的踩坑记录
-- ⚠️ Caddy `handle_path` 会剥前缀，但 FastAPI 的 `root_path` 期望前缀保留。**必须用 `handle` 而不是 `handle_path`** 给 lit-share 路由
+- ⚠️ **Base path 动态化（M2.5 改造）**：一个 uvicorn 实例要同时为 `c.xpro.work/preview/lit/*` 和 `hz.xpro.work/*` 服务。方案 = Caddy `handle_path` 剥前缀 + `header_up X-Forwarded-Prefix /preview/lit`；应用层中间件 `main.proxy_prefix` 把头值塞进 `scope["root_path"]`。`templating.base_path_of(request)` 是单一读取点；所有 cookie/redirect/template URL 都从它派生。`settings.APP_BASE_PATH` 已不再用于 FastAPI 构造（保留在 .env 里仅作文档参考，可忽略）
+- ⚠️ 注意：**用 sudo 跑 `caddy validate` 会用 root 创建空日志文件，把后续 caddy 用户的写权限抢掉**。要么 `chown caddy:caddy /var/log/caddy/access-*.log`，要么干脆 `caddy validate --config /tmp/foo`（不要 sudo）
 - ⚠️ uploadserver 把 `/upload` 当成自己内部路由，**不能挪到 /upload 路径下**——保持在根 `/`
 - ⚠️ Caddyfile 里 bcrypt 哈希 **不要做 `$$` 转义**，直接写原文
 - ⚠️ **passlib 1.7.4 + bcrypt 5.x 不兼容**（backend detect 用超长 secret 探测会抛 ValueError）。改成直接用 `bcrypt` 库。已从 requirements.txt 移除 passlib
 - ⚠️ **SQLite + BigInteger PK 不会触发 ROWID autoincrement**，插入会 `NOT NULL: id` 失败。`models.BigInt = BigInteger().with_variant(Integer(), "sqlite")` 是修复方案——MySQL/PG 仍是 BIGINT
-- ⚠️ Cookie 的 `path` 必须等于 `APP_BASE_PATH`（`/preview/lit`），否则浏览器不会回传。`security.cookie_path()` 处理了
-- ⚠️ Caddy 上有 basic auth（凭据 `anna` / `/home/claude/apps/web.cred`），curl 测试要 `--user`
 
 ---
 
@@ -164,11 +171,12 @@ M0 ✅ / M1 ✅ / M2 ✅ → 下一步：M3（应助流转 + PDF 脱敏开关 + 
 - **`app/timekit.py`** — 时区分层：DB 存 naive UTC，用户侧用 `Asia/Shanghai`。签到的日期 key 用 `today_cn_str()`；剩余时间用 `humanize_remaining(deadline)`
 
 ### 全局重要约定
-- **模板 URL 必须用 `{{ base_path }}` 前缀**（反代 base 是 `/preview/lit`）
-- redirect 在路由里：`(settings.APP_BASE_PATH or "") + "/path"` 给 RedirectResponse
-- 业务"数字 / 文案"用 `runtime_config.get_setting`，不要硬编码 `.env` 值
-- 跨 DB：PK/FK 用 `models.BigInt`，不要直接 `BigInteger`
-- 积分变动只能走 `points.adjust_points`，**绝对不要**直接 `user.points += x`
+- **模板 URL 用 `{{ base_path }}` 前缀**——`base_path` 由 `templating.render(request, ...)` 注入,值来自 `request.scope["root_path"]`(per-request)
+- 路由里的 redirect 用 `app.urls.redirect(request, "/path")`,**不要**写 `RedirectResponse(url=...)` 不带 base
+- cookie 的 `set_session_cookie`/`clear_session_cookie` 必须传 `request`,内部从 scope.root_path 算 path
+- 业务"数字 / 文案"用 `runtime_config.get_setting`,不要硬编码 `.env` 值
+- 跨 DB:PK/FK 用 `models.BigInt`,不要直接 `BigInteger`
+- 积分变动只能走 `points.adjust_points`,**绝对不要**直接 `user.points += x`
 
 ---
 

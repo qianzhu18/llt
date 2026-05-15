@@ -9,15 +9,13 @@ import logging
 from typing import Optional
 
 from email_validator import EmailNotValidError, validate_email
-from fastapi import APIRouter, Depends, Form, Request, status
-from fastapi.responses import RedirectResponse
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, Form, Request
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import User
 from ..security import (
-    SESSION_COOKIE,
     clear_session_cookie,
     current_user,
     hash_password,
@@ -28,6 +26,7 @@ from ..security import (
 )
 from ..settings import settings
 from ..templating import render
+from ..urls import public_url, redirect, strip_base
 
 logger = logging.getLogger("lit-share.auth")
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -51,28 +50,16 @@ def _send_verify_email(email: str, link: str) -> None:
 
 
 def _abs_url(request: Request, path: str) -> str:
-    """Compose a public-facing URL honoring root_path."""
-    base = str(request.base_url).rstrip("/")
-    return f"{base}{path}"
+    """Absolute public URL honoring scheme/host/base-path. Used in email links."""
+    scheme = request.headers.get("x-forwarded-proto") or request.url.scheme
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc
+    return f"{scheme}://{host}{public_url(request, path)}"
 
 
-def _redirect(path: str, status_code: int = status.HTTP_303_SEE_OTHER) -> RedirectResponse:
-    """Public-path redirect respecting reverse-proxy base path."""
-    full = (settings.APP_BASE_PATH or "") + path
-    return RedirectResponse(url=full or "/", status_code=status_code)
-
-
-def _safe_next(raw: str) -> str:
-    """Only allow same-origin internal paths under our base. Reject anything else."""
-    if not raw or not raw.startswith("/"):
-        return "/me"
-    base = settings.APP_BASE_PATH or ""
-    if base and raw.startswith(base + "/"):
-        # Strip base because _redirect re-adds it.
-        return raw[len(base):] or "/"
-    if base and raw == base:
-        return "/"
-    return "/me"
+def _safe_next(request: Request, raw: str) -> str:
+    """Validate ?next= as same-origin under our base; fall back to /me."""
+    internal = strip_base(request, raw)
+    return internal or "/me"
 
 
 # ---------------------------------------------------------------------------
@@ -82,7 +69,7 @@ def _safe_next(raw: str) -> str:
 @router.get("/register")
 def register_form(request: Request, user: Optional[User] = Depends(current_user)):
     if user:
-        return _redirect("/me")
+        return redirect(request, "/me")
     return render(request, "auth/register.html", current_user=user)
 
 
@@ -96,7 +83,7 @@ def register_submit(
     user: Optional[User] = Depends(current_user),
 ):
     if user:
-        return _redirect("/me")
+        return redirect(request, "/me")
 
     norm_email = _normalize_email(email)
     nickname = nickname.strip()
@@ -192,7 +179,7 @@ def verify(request: Request, token: str = "", db: Session = Depends(get_db)):
 @router.get("/login")
 def login_form(request: Request, next: str = "", user: Optional[User] = Depends(current_user)):
     if user:
-        return _redirect(_safe_next(next))
+        return redirect(request, _safe_next(request, next))
     return render(request, "auth/login.html", current_user=None, next_param=next)
 
 
@@ -236,13 +223,13 @@ def login_submit(
             status_code=403,
         )
 
-    response = _redirect(_safe_next(next))
-    set_session_cookie(response, user.id)
+    response = redirect(request, _safe_next(request, next))
+    set_session_cookie(response, user.id, request)
     return response
 
 
 @router.post("/logout")
-def logout(_user: User = Depends(current_user)):
-    response = _redirect("/")
-    clear_session_cookie(response)
+def logout(request: Request, _user: User = Depends(current_user)):
+    response = redirect(request, "/")
+    clear_session_cookie(response, request)
     return response

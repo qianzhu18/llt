@@ -37,8 +37,19 @@ app = FastAPI(
     docs_url="/api-docs" if settings.DEBUG else None,
     redoc_url=None,
     openapi_url="/openapi.json" if settings.DEBUG else None,
-    root_path=settings.APP_BASE_PATH,  # behind Caddy; tells FastAPI its public prefix
 )
+
+
+@app.middleware("http")
+async def proxy_prefix(request: Request, call_next):
+    """Caddy tells us the public base path per site via X-Forwarded-Prefix.
+    This lets the same uvicorn instance serve `c.xpro.work/preview/lit/*` AND
+    `hz.xpro.work/*` with correct cookie path / template URLs / redirects."""
+    fwd = request.headers.get("x-forwarded-prefix")
+    if fwd is not None:
+        request.scope["root_path"] = fwd.rstrip("/")
+    return await call_next(request)
+
 
 app.mount("/static", StaticFiles(directory=str(ROOT / "app" / "static")), name="static")
 
@@ -55,9 +66,14 @@ async def http_exc_handler(request: Request, exc: HTTPException):
         and exc.detail == "login_required"
         and "text/html" in request.headers.get("accept", "")
     ):
-        next_path = request.url.path
-        target = (settings.APP_BASE_PATH or "") + f"/auth/login?next={next_path}"
-        return RedirectResponse(url=target, status_code=status.HTTP_303_SEE_OTHER)
+        from .urls import public_url
+        base = request.scope.get("root_path", "")
+        # next= must include the public base so post-login round-trip works.
+        public_next = base + request.url.path
+        return RedirectResponse(
+            url=public_url(request, f"/auth/login?next={public_next}"),
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
     # Default handling for everything else.
     from fastapi.exception_handlers import http_exception_handler
     return await http_exception_handler(request, exc)

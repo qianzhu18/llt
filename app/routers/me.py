@@ -1,8 +1,7 @@
 """Personal center: profile, signin, my-requests, recent ledger."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Form, Request, status
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
@@ -14,13 +13,9 @@ from ..security import require_login
 from ..settings import settings
 from ..templating import render
 from ..timekit import today_cn_str
+from ..urls import redirect
 
 router = APIRouter(tags=["me"])
-
-
-def _redirect(path: str) -> RedirectResponse:
-    full = (settings.APP_BASE_PATH or "") + path
-    return RedirectResponse(url=full or "/", status_code=status.HTTP_303_SEE_OTHER)
 
 
 def _me_context(db: Session, user: User) -> dict:
@@ -88,7 +83,7 @@ def signin(
             db, user.id, signin_points, REASON_SIGNIN, note=f"daily {today}",
         )
         db.commit()
-    return _redirect("/me")
+    return redirect(request, "/me")
 
 
 @router.get("/me/profile")
