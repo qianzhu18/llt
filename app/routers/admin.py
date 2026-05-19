@@ -17,6 +17,7 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
+from ..email_send import send_email, smtp_status
 from ..models import HelpRequest, PointTransaction, Report, SystemSetting, User
 from ..points import REASON_ADMIN_GIFT, REASON_HELP_ACCEPTED, adjust_points
 from ..runtime_config import as_bool, as_int, get_setting, set_setting
@@ -106,6 +107,8 @@ def admin_index(
 def settings_form(
     request: Request,
     saved: Optional[str] = None,
+    smtp_msg: Optional[str] = None,
+    smtp_err: Optional[str] = None,
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -121,6 +124,8 @@ def settings_form(
         request, "admin/settings.html",
         current_user=user, nav="settings",
         items=items, saved=saved,
+        smtp_status=smtp_status(db),
+        smtp_msg=smtp_msg, smtp_err=smtp_err,
     )
 
 
@@ -160,6 +165,51 @@ async def settings_save(
 
     db.commit()
     return redirect(request, f"/admin/settings?saved={changed}")
+
+
+@router.post("/settings/test-email")
+def settings_test_email(
+    request: Request,
+    test_email: str = Form(...),
+    _csrf: None = Depends(require_csrf),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from urllib.parse import quote
+
+    try:
+        normalized = validate_email(test_email, check_deliverability=False).normalized.lower()
+    except EmailNotValidError:
+        return redirect(request, "/admin/settings?smtp_err=" + quote("测试收件邮箱格式不正确"))
+
+    status_info = smtp_status(db)
+    if not status_info["configured"]:
+        return redirect(request, "/admin/settings?smtp_err=" + quote("SMTP_HOST 未配置，无法发送测试邮件"))
+
+    site_title = get_setting(db, "SITE_TITLE", bootstrap.SITE_TITLE)
+    result = send_email(
+        db,
+        to=normalized,
+        subject=f"[{site_title}] SMTP 测试邮件",
+        body=(
+            f"你好，\n\n"
+            f"这是一封来自「{site_title}」管理后台的 SMTP 测试邮件。\n"
+            f"如果你收到这封邮件，说明当前发信配置已经生效。\n\n"
+            f"发件服务器：{status_info['host']}:{status_info['port']}\n"
+            f"发件地址：{status_info['from_addr']}\n"
+            f"加密方式：{'SSL' if status_info['use_ssl'] else 'STARTTLS'}\n\n"
+            f"—— {site_title}\n"
+        ),
+    )
+
+    if result["mode"] == "smtp":
+        logger.info("settings: smtp test mail sent to %s (admin %s)", normalized, user.email)
+        return redirect(request, "/admin/settings?smtp_msg=" + quote(f"测试邮件已发送到 {normalized}"))
+
+    return redirect(
+        request,
+        "/admin/settings?smtp_err=" + quote(f"测试邮件发送失败：{result['detail']}"),
+    )
 
 
 @router.post("/settings/reset")

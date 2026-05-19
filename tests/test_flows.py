@@ -5,6 +5,7 @@ from pathlib import Path
 import fitz
 from sqlalchemy import func, select
 
+import app.routers.admin as admin_mod
 from app.models import Attachment, DailySignin, HelpRequest, LibraryPaper, PointTransaction, SystemSetting, User
 from app.points import REASON_PUBLISH_DEDUCT, REASON_SIGNIN
 from app.security import CSRF_COOKIE, SESSION_COOKIE, hash_password, make_verify_token
@@ -370,3 +371,45 @@ def test_runtime_site_copy_is_used_in_templates(app_env):
     response = client.get("/auth/login")
     assert response.status_code == 200
     assert "<title>登录 · 文献互助测试站</title>" in response.text
+
+
+def test_admin_settings_can_send_smtp_test_email(app_env, monkeypatch):
+    client = app_env["client"]
+    SessionLocal = app_env["SessionLocal"]
+    make_user(SessionLocal, "admin@example.com", nickname="Admin", points=0, is_admin=True)
+
+    sent = {}
+
+    def fake_send_email(db, *, to: str, subject: str, body: str):
+        sent["to"] = to
+        sent["subject"] = subject
+        sent["body"] = body
+        return {"mode": "smtp", "detail": "ok"}
+
+    monkeypatch.setattr(admin_mod, "send_email", fake_send_email)
+
+    with SessionLocal() as db:
+        db.add(SystemSetting(key="SMTP_HOST", value="smtp.qq.com"))
+        db.add(SystemSetting(key="SMTP_PORT", value="587"))
+        db.add(SystemSetting(key="SMTP_USER", value="bot@qq.com"))
+        db.add(SystemSetting(key="SMTP_PASS", value="secret"))
+        db.add(SystemSetting(key="SMTP_FROM", value="bot@qq.com"))
+        db.add(SystemSetting(key="SMTP_USE_SSL", value="false"))
+        db.commit()
+
+    assert login(client, "admin@example.com").status_code == 303
+    response = client.get("/admin/settings")
+    assert response.status_code == 200
+    assert "SMTP 当前状态" in response.text
+    assert "smtp.qq.com:587" in response.text
+
+    response = post_form(
+        client,
+        "/admin/settings/test-email",
+        {"test_email": "deliver@example.com"},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert "测试邮件已发送到 deliver@example.com" in response.text
+    assert sent["to"] == "deliver@example.com"
+    assert "SMTP 测试邮件" in sent["subject"]

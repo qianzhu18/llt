@@ -7,6 +7,35 @@
     所有"业务数字 / 文案 / 邮件"。空白行 = 用 .env 默认值；保存后立刻生效，无需重启服务。
     {% if saved %}<span class="alert ok" style="display:inline;padding:2px 8px;">已保存 {{ saved }} 项</span>{% endif %}
   </p>
+  <div class="setting-row" style="margin:14px 0 18px;">
+    <div class="setting-meta">
+      <label>SMTP 当前状态</label>
+      <p class="muted small">
+        {% if smtp_status.configured %}
+          <span class="alert ok" style="display:inline-block;padding:2px 8px;">已配置</span>
+          {{ smtp_status.host }}:{{ smtp_status.port }} · {{ "SSL" if smtp_status.use_ssl else "STARTTLS" }}
+        {% else %}
+          <span class="alert error" style="display:inline-block;padding:2px 8px;">未配置</span>
+          站点当前不会真实发信，只会把验证链接回退到服务器日志
+        {% endif %}
+      </p>
+      <p class="muted small">
+        发件人 <code>{{ smtp_status.from_addr }}</code>
+        {% if smtp_status.user %} · 登录账号 <code>{{ smtp_status.user }}</code>{% endif %}
+        · 授权码 {% if smtp_status.password_set %}已设置{% else %}未设置{% endif %}
+      </p>
+      {% if smtp_msg %}<p class="alert ok">{{ smtp_msg }}</p>{% endif %}
+      {% if smtp_err %}<p class="alert error">{{ smtp_err }}</p>{% endif %}
+    </div>
+    <div class="setting-input">
+      <form method="post" action="{{ base_path }}/admin/settings/test-email">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        <label for="smtp_test_email" class="muted small">发送测试邮件到</label>
+        <input id="smtp_test_email" type="email" name="test_email" required value="{{ current_user.email }}">
+        <button type="submit" class="btn secondary block" style="margin-top:10px;">发送测试邮件</button>
+      </form>
+    </div>
+  </div>
   <form method="post" action="{{ base_path }}/admin/settings" class="settings-form">
     <input type="hidden" name="_csrf" value="{{ csrf_token }}">
     {% set current_group = namespace(name='') %}

@@ -44,26 +44,32 @@ def _smtp_config(db: Session) -> dict:
     }
 
 
-def send_verify_email(db: Session, to: str, verify_link: str, site_title: str) -> SendResult:
-    """Deliver the email-verification link. Returns a SendResult describing
-    which path was taken; callers can choose the user-facing copy accordingly."""
+def smtp_status(db: Session) -> dict:
+    cfg = _smtp_config(db)
+    return {
+        "configured": bool(cfg["host"]),
+        "host": cfg["host"],
+        "port": cfg["port"],
+        "user": cfg["user"],
+        "from_addr": cfg["from"] or cfg["user"] or "noreply@xpro.work",
+        "use_ssl": bool(cfg["use_ssl"]),
+        "password_set": bool(cfg["password"]),
+    }
+
+
+def send_email(db: Session, *, to: str, subject: str, body: str) -> SendResult:
+    """Best-effort plain-text email delivery using the configured SMTP transport."""
     cfg = _smtp_config(db)
 
     if not cfg["host"]:
-        logger.warning("== EMAIL STUB (no SMTP_HOST) ==> to=%s link=%s", to, verify_link)
+        logger.warning("== EMAIL STUB (no SMTP_HOST) ==> to=%s subject=%s", to, subject)
         return {"mode": "log", "detail": "SMTP_HOST 未配置"}
 
     msg = EmailMessage()
-    msg["Subject"] = f"[{site_title}] 验证你的邮箱"
+    msg["Subject"] = subject
     msg["From"] = cfg["from"] or cfg["user"] or "noreply@xpro.work"
     msg["To"] = to
-    msg.set_content(
-        f"你好，\n\n"
-        f"感谢注册「{site_title}」。请点击下方链接完成邮箱验证（24 小时内有效）：\n\n"
-        f"{verify_link}\n\n"
-        f"如果你没有注册过我们的网站，请忽略此邮件。\n\n"
-        f"—— {site_title}\n"
-    )
+    msg.set_content(body)
 
     try:
         if cfg["use_ssl"]:
@@ -80,9 +86,29 @@ def send_verify_email(db: Session, to: str, verify_link: str, site_title: str) -
                 smtp.quit()
             except Exception:  # noqa: BLE001
                 pass
-        logger.info("verify email sent via SMTP host=%s to=%s", cfg["host"], to)
+        logger.info("email sent via SMTP host=%s to=%s subject=%s", cfg["host"], to, subject)
         return {"mode": "smtp", "detail": "ok"}
     except Exception as e:  # noqa: BLE001
         logger.exception("SMTP send failed for %s, falling back to log stub", to)
-        logger.warning("== EMAIL STUB (SMTP fail) ==> to=%s link=%s", to, verify_link)
+        logger.warning("== EMAIL STUB (SMTP fail) ==> to=%s subject=%s", to, subject)
         return {"mode": "error", "detail": str(e)[:200]}
+
+
+def send_verify_email(db: Session, to: str, verify_link: str, site_title: str) -> SendResult:
+    """Deliver the email-verification link. Returns a SendResult describing
+    which path was taken; callers can choose the user-facing copy accordingly."""
+    result = send_email(
+        db,
+        to=to,
+        subject=f"[{site_title}] 验证你的邮箱",
+        body=(
+            f"你好，\n\n"
+            f"感谢注册「{site_title}」。请点击下方链接完成邮箱验证（24 小时内有效）：\n\n"
+            f"{verify_link}\n\n"
+            f"如果你没有注册过我们的网站，请忽略此邮件。\n\n"
+            f"—— {site_title}\n"
+        ),
+    )
+    if result["mode"] == "smtp":
+        logger.info("verify email sent via SMTP to=%s", to)
+    return result
