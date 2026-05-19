@@ -15,6 +15,7 @@ if str(ROOT) not in sys.path:
 import app.main as main_mod
 import app.routers.requests as requests_mod
 import app.services as services_mod
+import app.templating as templating_mod
 from app.db import Base, get_db
 from app.settings import settings
 
@@ -41,6 +42,7 @@ def app_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(services_mod, "UPLOADS_DIR", uploads_dir)
     monkeypatch.setattr(services_mod, "LIBRARY_DIR", library_dir)
     monkeypatch.setattr(requests_mod, "UPLOADS_DIR", uploads_dir)
+    monkeypatch.setattr(templating_mod, "SessionLocal", SessionLocal)
     monkeypatch.setattr(main_mod._scheduler, "start", lambda: None)
     monkeypatch.setattr(main_mod._scheduler, "shutdown", lambda wait=False: None)
 

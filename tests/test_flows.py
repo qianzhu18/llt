@@ -351,3 +351,22 @@ def test_publish_limit_blocks_too_many_active_requests(app_env):
     )
     assert response.status_code == 400
     assert "已达到上限 1 条" in response.text
+
+
+def test_runtime_site_copy_is_used_in_templates(app_env):
+    client = app_env["client"]
+    SessionLocal = app_env["SessionLocal"]
+
+    with SessionLocal() as db:
+        db.add(SystemSetting(key="SITE_TITLE", value="文献互助测试站"))
+        db.add(SystemSetting(key="SITE_SLOGAN", value="运行时配置立即生效"))
+        db.commit()
+
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "文献互助测试站" in response.text
+    assert "运行时配置立即生效" in response.text
+
+    response = client.get("/auth/login")
+    assert response.status_code == 200
+    assert "<title>登录 · 文献互助测试站</title>" in response.text

@@ -5,13 +5,28 @@ from typing import Any, Optional
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
+from .db import SessionLocal
 from .models import User
+from .runtime_config import get_setting
 from .security import CSRF_COOKIE, ensure_csrf_token, set_csrf_cookie
 from .settings import settings
 
 
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
+
+
+def _runtime_site_text() -> tuple[str, str]:
+    """Read runtime-overridable site copy with a safe fallback to .env defaults."""
+    db = SessionLocal()
+    try:
+        site_title = get_setting(db, "SITE_TITLE", settings.SITE_TITLE)
+        site_slogan = get_setting(db, "SITE_SLOGAN", settings.SITE_SLOGAN)
+        return site_title, site_slogan
+    except Exception:  # noqa: BLE001
+        return settings.SITE_TITLE, settings.SITE_SLOGAN
+    finally:
+        db.close()
 
 
 def base_path_of(request: Request) -> str:
@@ -31,8 +46,9 @@ def render(
     status_code: int = 200,
     **context: Any,
 ):
-    context.setdefault("site_title", settings.SITE_TITLE)
-    context.setdefault("site_slogan", settings.SITE_SLOGAN)
+    site_title, site_slogan = _runtime_site_text()
+    context.setdefault("site_title", site_title)
+    context.setdefault("site_slogan", site_slogan)
     context["base_path"] = base_path_of(request)
     context["current_user"] = current_user
     csrf_token = ensure_csrf_token(request)
