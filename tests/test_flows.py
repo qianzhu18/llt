@@ -5,6 +5,7 @@ from pathlib import Path
 import fitz
 from sqlalchemy import func, select
 
+import app.main as main_mod
 import app.routers.admin as admin_mod
 from app.models import Attachment, DailySignin, HelpRequest, LibraryPaper, PointTransaction, SystemSetting, User
 from app.points import REASON_PUBLISH_DEDUCT, REASON_SIGNIN
@@ -413,3 +414,22 @@ def test_admin_settings_can_send_smtp_test_email(app_env, monkeypatch):
     assert "测试邮件已发送到 deliver@example.com" in response.text
     assert sent["to"] == "deliver@example.com"
     assert "SMTP 测试邮件" in sent["subject"]
+
+
+def test_health_reports_deploy_metadata(app_env, monkeypatch, tmp_path):
+    branch_file = tmp_path / ".deploy_branch"
+    rev_file = tmp_path / ".deploy_rev"
+    branch_file.write_text("codex/m6-runtime-hardening", encoding="utf-8")
+    rev_file.write_text("2573de73c2bda31ca0b08495f428dcb4d7df7002", encoding="utf-8")
+
+    monkeypatch.setattr(main_mod, "DEPLOY_BRANCH_FILE", branch_file)
+    monkeypatch.setattr(main_mod, "DEPLOY_REV_FILE", rev_file)
+
+    response = app_env["client"].get("/health")
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "version": "2573de7",
+        "deploy_branch": "codex/m6-runtime-hardening",
+        "deploy_rev": "2573de73c2bda31ca0b08495f428dcb4d7df7002",
+    }

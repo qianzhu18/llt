@@ -42,6 +42,8 @@ logger = logging.getLogger("lit-share.main")
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 UPLOAD_DIR = ROOT / "uploads"
+DEPLOY_BRANCH_FILE = ROOT / ".deploy_branch"
+DEPLOY_REV_FILE = ROOT / ".deploy_rev"
 DATA_DIR.mkdir(exist_ok=True)
 UPLOAD_DIR.mkdir(exist_ok=True)
 
@@ -152,7 +154,14 @@ async def http_exc_handler(request: Request, exc: HTTPException):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.5.2-m5"}
+    branch = DEPLOY_BRANCH_FILE.read_text(encoding="utf-8").strip() if DEPLOY_BRANCH_FILE.exists() else ""
+    rev = DEPLOY_REV_FILE.read_text(encoding="utf-8").strip() if DEPLOY_REV_FILE.exists() else ""
+    return {
+        "status": "ok",
+        "version": rev[:7] if rev else "workspace",
+        "deploy_branch": branch or None,
+        "deploy_rev": rev or None,
+    }
 
 
 def _recent_activities(db: Session, limit: int = 15) -> list[dict]:
