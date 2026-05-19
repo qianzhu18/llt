@@ -29,6 +29,7 @@
               {% if u.id != current_user.id %}
                 <form method="post" action="{{ base_path }}/admin/users/{{ u.id }}/toggle-active" class="inline-form"
                       onsubmit="return confirm('{% if u.is_active %}禁用{% else %}启用{% endif %} {{ u.email }} ?')">
+                  <input type="hidden" name="_csrf" value="{{ csrf_token }}">
                   <button type="submit" class="link-btn">{% if u.is_active %}禁用{% else %}启用{% endif %}</button>
                 </form>
               {% endif %}

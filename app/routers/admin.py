@@ -20,7 +20,7 @@ from ..db import get_db
 from ..models import HelpRequest, PointTransaction, Report, SystemSetting, User
 from ..points import REASON_ADMIN_GIFT, REASON_HELP_ACCEPTED, adjust_points
 from ..runtime_config import as_bool, as_int, get_setting, set_setting
-from ..security import require_admin
+from ..security import require_admin, require_csrf
 from ..services import force_close_request
 from ..settings import settings as bootstrap
 from ..templating import render
@@ -127,6 +127,7 @@ def settings_form(
 @router.post("/settings")
 async def settings_save(
     request: Request,
+    _csrf: None = Depends(require_csrf),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -165,6 +166,7 @@ async def settings_save(
 def settings_reset(
     request: Request,
     key: str = Form(...),
+    _csrf: None = Depends(require_csrf),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -215,6 +217,7 @@ def gift_submit(
     target: str = Form(...),
     delta: int = Form(...),
     note: str = Form(""),
+    _csrf: None = Depends(require_csrf),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -280,6 +283,7 @@ def users_list(
 def user_toggle_active(
     request: Request,
     user_id: int,
+    _csrf: None = Depends(require_csrf),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -342,6 +346,7 @@ def request_force_close(
     request: Request,
     req_id: int,
     note: str = Form("admin 关闭"),
+    _csrf: None = Depends(require_csrf),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -387,6 +392,7 @@ def reports_list(
 def report_dismiss(
     request: Request,
     rep_id: int,
+    _csrf: None = Depends(require_csrf),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):

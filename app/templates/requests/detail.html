@@ -42,6 +42,7 @@
       <h3 style="margin-bottom:8px;">🤝 我来应助</h3>
       <p class="muted small">认领后请尽快上传 PDF（≤ {{ max_mb }}MB），完成应助可获得 <strong>+{{ req.bounty }}</strong> 积分。</p>
       <form method="post" action="{{ base_path }}/requests/{{ req.id }}/claim" style="margin-top:12px;">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
         <button type="submit" class="btn primary block">我来应助 (+{{ req.bounty }} 积分)</button>
       </form>
     </section>
@@ -62,6 +63,7 @@
       </p>
       <form method="post" action="{{ base_path }}/requests/{{ req.id }}/upload"
             enctype="multipart/form-data" style="margin-top:12px;">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
         <label>选择 PDF 文件
           <input type="file" name="pdf" accept="application/pdf,.pdf" required>
         </label>
@@ -70,6 +72,7 @@
       <form method="post" action="{{ base_path }}/requests/{{ req.id }}/release"
             style="margin-top:12px;"
             onsubmit="return confirm('放弃应助后任务将回到待应助大厅，其他人可重新认领。确定吗？');">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
         <button type="submit" class="btn link-btn" style="color:var(--muted);">放弃应助（任务释放）</button>
       </form>
     </section>
@@ -96,12 +99,14 @@
       <div class="action-row" style="margin-top:12px;">
         <a href="{{ base_path }}/requests/{{ req.id }}/download" class="btn secondary" target="_blank">📄 预览下载</a>
         <form method="post" action="{{ base_path }}/requests/{{ req.id }}/confirm" class="inline-form">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
           <button type="submit" class="btn primary">确认接收</button>
         </form>
       </div>
       <details style="margin-top:14px;">
         <summary class="muted small" style="cursor:pointer;">驳回（要求重新上传）</summary>
         <form method="post" action="{{ base_path }}/requests/{{ req.id }}/reject" style="margin-top:10px;">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
           <label>驳回原因（可选）
             <textarea name="reason" rows="3" maxlength="500" placeholder="例: 文件损坏 / 不是同一篇 / 缺页..."></textarea>
           </label>
@@ -160,6 +165,7 @@
       <details>
         <summary style="cursor:pointer;">⚠️ 举报这条求助（疑似违规）</summary>
         <form method="post" action="{{ base_path }}/requests/{{ req.id }}/report" style="margin-top:10px;">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
           <label>原因（必填，≤ 255 字）
             <textarea name="reason" rows="2" maxlength="255" required placeholder="例: 不在合理使用范围 / 涉嫌侵权 / 误发..."></textarea>
           </label>

@@ -4,10 +4,16 @@
 <section class="card form-card form-wide">
   <h2>📝 发布文献求助</h2>
   <p class="muted small">
-    当前积分 <strong>{{ current_user.points }}</strong> · 求助超时 {{ timeout_days }} 天后自动退分
+    当前积分 <strong>{{ current_user.points }}</strong>
+    · 进行中 {{ active_count }}/{{ active_limit }}
+    · 求助超时 {{ timeout_days }} 天后自动退分
   </p>
   {% if error %}<p class="alert error">{{ error }}</p>{% endif %}
+  {% if publish_blocked %}
+    <p class="alert error">你已经达到同时进行中的求助上限，先等已有求助处理完再发新的。</p>
+  {% endif %}
   <form method="post" action="{{ base_path }}/requests/new">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
     <label>文献标题 *
       <input type="text" name="title" required maxlength="500" value="{{ form.title or '' }}">
     </label>
@@ -36,7 +42,7 @@
       </div>
       <p class="muted small">超时无人应助 → 全额退回；完成应助 → 转给应助者</p>
     </fieldset>
-    <button type="submit" class="btn primary block">发布</button>
+    <button type="submit" class="btn primary block" {% if publish_blocked %}disabled{% endif %}>发布</button>
   </form>
   <p class="muted small"><a href="{{ base_path }}/requests">取消，返回大厅</a></p>
 </section>

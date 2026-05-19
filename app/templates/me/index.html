@@ -12,6 +12,7 @@
 
   <div class="action-row">
     <form method="post" action="{{ base_path }}/me/signin" class="inline-form">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
       <button type="submit" class="btn primary" {% if signed_today %}disabled{% endif %}>
         {% if signed_today %}✓ 今日已签到{% else %}🌟 每日签到 +{{ signin_points }}{% endif %}
       </button>

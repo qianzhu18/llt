@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}共享文献库 · {{ site_title }}{% endblock %}
+{% block content %}
+<section class="page-head">
+  <h2>📚 共享文献库</h2>
+  <p class="muted small">共 {{ total }} 篇已完结文献</p>
+</section>
+
+<section class="card">
+  <form method="get" action="{{ base_path }}/library" class="search-form">
+    <input type="search" name="q" value="{{ q }}" placeholder="搜标题、作者、期刊">
+    <button type="submit" class="btn primary">搜索</button>
+  </form>
+  <p class="muted small" style="margin-top:10px;">
+    完结后的文献会自动沉淀到这里，其他用户可以直接检索并下载。
+  </p>
+</section>
+
+{% if not items %}
+  <section class="card muted">
+    <p>{% if q %}没有找到和“{{ q }}”相关的文献。{% else %}还没有可浏览的文献。{% endif %}</p>
+  </section>
+{% endif %}
+
+{% for paper in items %}
+  <section class="card catalog-card">
+    <div class="req-head">
+      <h3 class="req-title">{{ paper.title }}</h3>
+      <span class="bounty">#{{ paper.id }}</span>
+    </div>
+    <p class="meta">
+      <span>{{ paper.authors }}</span>
+      {% if paper.journal %}<span>·</span><span>{{ paper.journal }}</span>{% endif %}
+      <span>·</span><span>{{ paper.year }}</span>
+    </p>
+    <div class="catalog-footer">
+      <p class="muted small">
+        入库 {{ paper.created_at.strftime('%Y-%m-%d') if paper.created_at else '' }}
+        · 下载 {{ paper.download_count }}
+      </p>
+      {% if current_user %}
+        <a href="{{ base_path }}/library/{{ paper.id }}/download" class="btn secondary">下载 PDF</a>
+      {% else %}
+        <a href="{{ base_path }}/auth/login?next={{ base_path }}/library/{{ paper.id }}/download" class="btn secondary">登录后下载</a>
+      {% endif %}
+    </div>
+  </section>
+{% endfor %}
+
+{% if has_next or page > 1 %}
+  <nav class="pager">
+    {% if page > 1 %}<a href="{{ base_path }}/library?page={{ page-1 }}{% if q %}&q={{ q }}{% endif %}">‹ 上一页</a>{% endif %}
+    <span class="muted">第 {{ page }} 页</span>
+    {% if has_next %}<a href="{{ base_path }}/library?page={{ page+1 }}{% if q %}&q={{ q }}{% endif %}">下一页 ›</a>{% endif %}
+  </nav>
+{% endif %}
+{% endblock %}

@@ -6,6 +6,7 @@
   {% if error %}<p class="alert error">{{ error }}</p>{% endif %}
   {% if message %}<p class="alert ok">{{ message }}</p>{% endif %}
   <form method="post" action="{{ base_path }}/me/profile">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
     <label>邮箱（不可改）
       <input type="email" value="{{ current_user.email }}" disabled>
     </label>

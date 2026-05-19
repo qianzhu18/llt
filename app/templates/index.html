@@ -36,6 +36,33 @@
   {% endif %}
 </section>
 
+<section class="card">
+  <div class="page-head" style="margin-top:0;">
+    <h2>共享文献库</h2>
+    <p class="muted small">已沉淀 {{ library_count }} 篇</p>
+    <a href="{{ base_path }}/library" class="btn secondary">进入共享库</a>
+  </div>
+  {% if recent_library %}
+    <ul class="my-list">
+      {% for paper in recent_library %}
+        <li>
+          <div style="flex:1;">
+            <strong>{{ paper.title }}</strong>
+            <p class="muted small">
+              {{ paper.authors }}
+              {% if paper.journal %} · {{ paper.journal }}{% endif %}
+              · {{ paper.year }}
+            </p>
+          </div>
+          <span class="muted small">下载 {{ paper.download_count }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted small">还没有沉淀文献。第一批完结的求助会自动出现在这里。</p>
+  {% endif %}
+</section>
+
 <section class="card small muted">
   <p><strong>玩法</strong>：每日签到攒积分 → 发布求助消耗悬赏积分 → 应助他人获得积分 → 完结的文献沉淀进共享库供大家免费下载。</p>
 </section>

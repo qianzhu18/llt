@@ -9,7 +9,7 @@ from ..db import get_db
 from ..models import DailySignin, HelpRequest, PointTransaction, User
 from ..points import REASON_SIGNIN, adjust_points
 from ..runtime_config import as_int, get_setting
-from ..security import require_login
+from ..security import require_csrf, require_login
 from ..settings import settings
 from ..templating import render
 from ..timekit import today_cn_str
@@ -67,6 +67,7 @@ def me_index(request: Request, user: User = Depends(require_login), db: Session 
 @router.post("/me/signin")
 def signin(
     request: Request,
+    _csrf: None = Depends(require_csrf),
     user: User = Depends(require_login),
     db: Session = Depends(get_db),
 ):
@@ -95,6 +96,7 @@ def profile_form(request: Request, user: User = Depends(require_login)):
 def profile_submit(
     request: Request,
     nickname: str = Form(...),
+    _csrf: None = Depends(require_csrf),
     user: User = Depends(require_login),
     db: Session = Depends(get_db),
 ):

@@ -14,10 +14,12 @@
   <div class="nav-links">
     <a href="{{ base_path }}/">首页</a>
     <a href="{{ base_path }}/requests">大厅</a>
+    <a href="{{ base_path }}/library">共享库</a>
     {% if current_user %}
       {% if current_user.is_admin %}<a href="{{ base_path }}/admin" class="admin-link">★ 管理</a>{% endif %}
       <a href="{{ base_path }}/me">{{ current_user.nickname or current_user.email }}</a>
       <form method="post" action="{{ base_path }}/auth/logout" class="inline-form">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
         <button type="submit" class="link-btn">登出</button>
       </form>
     {% else %}

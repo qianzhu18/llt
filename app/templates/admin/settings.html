@@ -8,6 +8,7 @@
     {% if saved %}<span class="alert ok" style="display:inline;padding:2px 8px;">已保存 {{ saved }} 项</span>{% endif %}
   </p>
   <form method="post" action="{{ base_path }}/admin/settings" class="settings-form">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
     {% set current_group = namespace(name='') %}
     {% for it in items %}
       {% if it.group and it.group != current_group.name %}
@@ -42,10 +43,10 @@
             <input id="s_{{ it.key }}" type="text" name="{{ it.key }}" value="{{ it.current }}">
           {% endif %}
           {% if it.overridden %}
-            <form method="post" action="{{ base_path }}/admin/settings/reset" style="display:inline;margin:0;">
-              <input type="hidden" name="key" value="{{ it.key }}">
-              <button type="submit" class="link-btn" onclick="return confirm('恢复 {{ it.key }} 为 .env 默认值？')">↺ 重置</button>
-            </form>
+            <button type="submit" class="link-btn"
+                    formaction="{{ base_path }}/admin/settings/reset" formmethod="post"
+                    name="key" value="{{ it.key }}"
+                    onclick="return confirm('恢复 {{ it.key }} 为 .env 默认值？')">↺ 重置</button>
           {% endif %}
         </div>
       </div>

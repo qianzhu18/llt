@@ -26,6 +26,7 @@
               <td>
                 <form method="post" action="{{ base_path }}/admin/reports/{{ it.r.id }}/dismiss" class="inline-form"
                       onsubmit="return confirm('忽略这条举报？');">
+                  <input type="hidden" name="_csrf" value="{{ csrf_token }}">
                   <button type="submit" class="link-btn">忽略</button>
                 </form>
               </td>

@@ -6,6 +6,7 @@ from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
 from .models import User
+from .security import CSRF_COOKIE, ensure_csrf_token, set_csrf_cookie
 from .settings import settings
 
 
@@ -34,4 +35,13 @@ def render(
     context.setdefault("site_slogan", settings.SITE_SLOGAN)
     context["base_path"] = base_path_of(request)
     context["current_user"] = current_user
-    return templates.TemplateResponse(template, {"request": request, **context}, status_code=status_code)
+    csrf_token = ensure_csrf_token(request)
+    response = templates.TemplateResponse(
+        request,
+        template,
+        {"request": request, **context, "csrf_token": csrf_token},
+        status_code=status_code,
+    )
+    if request.cookies.get(CSRF_COOKIE) != csrf_token:
+        set_csrf_cookie(response, request, csrf_token)
+    return response

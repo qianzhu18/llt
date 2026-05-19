@@ -17,7 +17,7 @@ from ..models import Attachment, HelpRequest, LibraryPaper, PointTransaction, Re
 from ..pdf_redact import safe_desensitize
 from ..points import REASON_HELP_ACCEPTED, REASON_PUBLISH_DEDUCT, InsufficientPoints, adjust_points
 from ..runtime_config import as_bool, as_int, get_setting
-from ..security import current_user, require_login
+from ..security import current_user, require_csrf, require_login
 from ..services import (
     UPLOADS_DIR,
     complete_request,
@@ -64,6 +64,15 @@ def _journal_quota_used_this_month(db: Session, user_id: int, journal_norm: str)
             HelpRequest.requester_id == user_id,
             func.lower(HelpRequest.journal) == journal_norm,
             HelpRequest.created_at >= _cn_month_start_utc(),
+        )
+    ) or 0
+
+
+def _active_request_count(db: Session, user_id: int) -> int:
+    return db.scalar(
+        select(func.count(HelpRequest.id)).where(
+            HelpRequest.requester_id == user_id,
+            HelpRequest.status.in_(("open", "claimed", "awaiting_confirm")),
         )
     ) or 0
 
@@ -119,11 +128,16 @@ def new_form(
     db: Session = Depends(get_db),
 ):
     timeout_days = get_setting(db, "REQUEST_TIMEOUT_DAYS", settings.REQUEST_TIMEOUT_DAYS, cast=as_int)
+    active_limit = get_setting(db, "MAX_ACTIVE_REQUESTS", settings.MAX_ACTIVE_REQUESTS, cast=as_int)
+    active_count = _active_request_count(db, user.id)
     return render(
         request, "requests/new.html",
         current_user=user,
         bounty_options=BOUNTY_OPTIONS,
         timeout_days=timeout_days,
+        active_limit=active_limit,
+        active_count=active_count,
+        publish_blocked=active_count >= active_limit,
         current_year=CURRENT_YEAR,
         form={},
     )
@@ -138,6 +152,7 @@ def new_submit(
     year: int = Form(...),
     extra: str = Form(""),
     bounty: int = Form(...),
+    _csrf: None = Depends(require_csrf),
     user: User = Depends(require_login),
     db: Session = Depends(get_db),
 ):
@@ -148,12 +163,16 @@ def new_submit(
 
     timeout_days = get_setting(db, "REQUEST_TIMEOUT_DAYS", settings.REQUEST_TIMEOUT_DAYS, cast=as_int)
     journal_limit = get_setting(db, "SAME_JOURNAL_MONTHLY_LIMIT", settings.SAME_JOURNAL_MONTHLY_LIMIT, cast=as_int)
+    active_limit = get_setting(db, "MAX_ACTIVE_REQUESTS", settings.MAX_ACTIVE_REQUESTS, cast=as_int)
+    active_count = _active_request_count(db, user.id)
 
     def _err(msg: str, code: int = 400):
         return render(
             request, "requests/new.html",
             current_user=user, error=msg,
             bounty_options=BOUNTY_OPTIONS, timeout_days=timeout_days,
+            active_limit=active_limit, active_count=active_count,
+            publish_blocked=active_count >= active_limit,
             current_year=CURRENT_YEAR,
             form={"title": title, "authors": authors, "journal": journal,
                   "year": year, "extra": extra, "bounty": bounty},
@@ -174,6 +193,11 @@ def new_submit(
         return _err(f"年份需在 {MIN_YEAR}–{MAX_YEAR} 之间")
     if bounty not in BOUNTY_OPTIONS:
         return _err("悬赏积分必须是 10/20/30/50 之一")
+    if active_count >= active_limit:
+        return _err(
+            f"你当前还有 {active_count} 条进行中的求助，已达到上限 {active_limit} 条。"
+            "请先等待其中一些完结、过期或关闭后再发布。"
+        )
 
     journal_norm = _normalize_journal(journal)
     if journal_norm:
@@ -308,6 +332,7 @@ def detail(
 def claim(
     request: Request,
     req_id: int,
+    _csrf: None = Depends(require_csrf),
     user: User = Depends(require_login),
     db: Session = Depends(get_db),
 ):
@@ -329,6 +354,7 @@ def claim(
 def release(
     request: Request,
     req_id: int,
+    _csrf: None = Depends(require_csrf),
     user: User = Depends(require_login),
     db: Session = Depends(get_db),
 ):
@@ -351,6 +377,7 @@ async def upload(
     request: Request,
     req_id: int,
     pdf: UploadFile = File(...),
+    _csrf: None = Depends(require_csrf),
     user: User = Depends(require_login),
     db: Session = Depends(get_db),
 ):
@@ -414,6 +441,7 @@ async def upload(
 def confirm(
     request: Request,
     req_id: int,
+    _csrf: None = Depends(require_csrf),
     user: User = Depends(require_login),
     db: Session = Depends(get_db),
 ):
@@ -439,6 +467,7 @@ def reject(
     request: Request,
     req_id: int,
     reason: str = Form(""),
+    _csrf: None = Depends(require_csrf),
     user: User = Depends(require_login),
     db: Session = Depends(get_db),
 ):
@@ -459,6 +488,7 @@ def report(
     request: Request,
     req_id: int,
     reason: str = Form(...),
+    _csrf: None = Depends(require_csrf),
     user: User = Depends(require_login),
     db: Session = Depends(get_db),
 ):
@@ -547,6 +577,10 @@ def download(
 
     if file_path is None or not file_path.exists():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+    if req.status == "completed":
+        paper.download_count += 1
+        db.commit()
 
     return FileResponse(
         str(file_path),

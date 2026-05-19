@@ -1,10 +1,10 @@
-.venv/
+/.venv/
 __pycache__/
 *.pyc
-.env
-data/
-uploads/
-library/
+/.env
+/data/
+/uploads/
+/library/
 *.log
-app.zip
+/app.zip
 .DS_Store

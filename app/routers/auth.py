@@ -19,6 +19,7 @@ from ..security import (
     hash_password,
     make_verify_token,
     read_verify_token,
+    require_csrf,
     set_session_cookie,
     verify_password,
 )
@@ -72,6 +73,7 @@ def register_submit(
     email: str = Form(...),
     password: str = Form(...),
     nickname: str = Form(...),
+    _csrf: None = Depends(require_csrf),
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(current_user),
 ):
@@ -146,6 +148,8 @@ def register_submit(
         current_user=None,
         title="注册成功，请验证邮箱",
         message=message,
+        action_label="前往登录",
+        action_url="/auth/login",
     )
 
 
@@ -196,6 +200,7 @@ def login_submit(
     email: str = Form(...),
     password: str = Form(...),
     next: str = Form(""),
+    _csrf: None = Depends(require_csrf),
     db: Session = Depends(get_db),
 ):
     norm_email = _normalize_email(email)
@@ -203,6 +208,7 @@ def login_submit(
         return render(
             request, "auth/login.html", current_user=None,
             error="邮箱格式不正确", form_email=email,
+            next_param=next,
             status_code=400,
         )
     user = db.scalar(select(User).where(User.email == norm_email))
@@ -210,12 +216,14 @@ def login_submit(
         return render(
             request, "auth/login.html", current_user=None,
             error="邮箱或密码错误", form_email=email,
+            next_param=next,
             status_code=400,
         )
     if not user.is_active:
         return render(
             request, "auth/login.html", current_user=None,
             error="账户已被禁用，请联系管理员", form_email=email,
+            next_param=next,
             status_code=403,
         )
     if not user.email_verified:
@@ -231,6 +239,7 @@ def login_submit(
         return render(
             request, "auth/login.html", current_user=None,
             error=err, form_email=email,
+            next_param=next,
             status_code=403,
         )
 
@@ -239,8 +248,52 @@ def login_submit(
     return response
 
 
+@router.post("/resend-verify")
+def resend_verify(
+    request: Request,
+    email: str = Form(...),
+    _csrf: None = Depends(require_csrf),
+    db: Session = Depends(get_db),
+):
+    norm_email = _normalize_email(email)
+    title = "验证邮件已处理"
+    message = "如果这个邮箱尚未完成验证，我们已经重新发送了一封验证邮件。"
+
+    if norm_email:
+        user = db.scalar(select(User).where(User.email == norm_email))
+        if user and user.email_verified:
+            title = "这个邮箱已经验证过"
+            message = "直接登录就可以继续使用，不需要重新验证。"
+        elif user:
+            token = make_verify_token(user.email)
+            link = _abs_url(request, f"/auth/verify?token={token}")
+            site_title = get_setting(db, "SITE_TITLE", settings.SITE_TITLE)
+            result = send_verify_email(db, user.email, link, site_title)
+            if result["mode"] == "log":
+                message = "验证链接已重新生成；如果站点还没配置 SMTP，请联系管理员查看服务器日志。"
+            elif result["mode"] == "error":
+                message = (
+                    "邮件发送遇到一点问题，但验证链接已经回退到服务器日志。"
+                    "如果几分钟内还没收到，请联系管理员。"
+                )
+
+    return render(
+        request,
+        "auth/notice.html",
+        current_user=None,
+        title=title,
+        message=message,
+        action_label="返回登录",
+        action_url="/auth/login",
+    )
+
+
 @router.post("/logout")
-def logout(request: Request, _user: User = Depends(current_user)):
+def logout(
+    request: Request,
+    _csrf: None = Depends(require_csrf),
+    _user: User = Depends(current_user),
+):
     response = redirect(request, "/")
     clear_session_cookie(response, request)
     return response
