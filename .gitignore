@@ -6,4 +6,5 @@ data/
 uploads/
 library/
 *.log
+app.zip
 .DS_Store
