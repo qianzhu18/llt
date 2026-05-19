@@ -177,6 +177,12 @@
 {% endif %}
 
 <p class="muted small" style="text-align:center;margin-top:18px;">
-  <a href="{{ base_path }}/requests">← 返回大厅</a>
+  {% if current_user and (is_owner or is_helper) %}
+    <a href="{{ base_path }}/me">← 返回个人中心</a>
+    <span> · </span>
+    <a href="{{ base_path }}/requests">查看大厅</a>
+  {% else %}
+    <a href="{{ base_path }}/requests">← 返回大厅</a>
+  {% endif %}
 </p>
 {% endblock %}

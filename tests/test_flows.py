@@ -221,6 +221,10 @@ def test_request_lifecycle_claim_upload_confirm_and_library_sink(app_env):
         assert Path(paper.file_path).exists()
         assert Path(paper.file_path).with_name(f"{Path(paper.file_path).stem}.sanitized.pdf").exists()
 
+    detail = client.get(f"/requests/{req_id}")
+    assert detail.status_code == 200
+    assert "返回个人中心" in detail.text
+
     download = client.get(f"/requests/{req_id}/download")
     assert download.status_code == 200
     assert download.headers["content-type"].startswith("application/pdf")
@@ -230,6 +234,10 @@ def test_request_lifecycle_claim_upload_confirm_and_library_sink(app_env):
         assert paper.download_count == 1
 
     logout(client)
+    anon_detail = client.get(f"/requests/{req_id}")
+    assert anon_detail.status_code == 200
+    assert "返回大厅" in anon_detail.text
+
     library_page = client.get("/library?q=Useful")
     assert library_page.status_code == 200
     assert "A Useful Paper" in library_page.text
