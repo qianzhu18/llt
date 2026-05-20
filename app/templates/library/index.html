@@ -5,20 +5,19 @@
 
   <!-- Page Header -->
   <div>
-    <h1 class="font-headline-lg text-headline-lg text-on-surface">共享文献库</h1>
-    <p class="font-body-md text-body-md text-on-surface-variant mt-1">共 {{ total }} 篇已完结文献。检索标题、作者或期刊，直接复用社区已经沉淀下来的成果。</p>
+    <h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">共享文献库</h1>
+    <p class="font-label-sm md:font-body-md text-label-sm md:text-body-md text-on-surface-variant mt-1">共 {{ total }} 篇已完结文献，检索标题、作者或期刊。</p>
   </div>
 
   <!-- Search -->
-  <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-surface-container-highest">
-    <form method="get" action="{{ base_path }}/library" class="flex gap-3">
+  <div class="bg-surface-container-lowest rounded-xl p-4 md:p-6 shadow-sm border border-surface-container-highest">
+    <form method="get" action="{{ base_path }}/library" class="flex gap-2 md:gap-3">
       <input type="search" name="q" value="{{ q }}" placeholder="搜标题、作者、期刊"
-        class="flex-1 min-h-[48px] px-4 py-3 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-body-md text-body-md focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
-      <button type="submit" class="bg-primary text-on-primary px-6 py-3 rounded-xl font-label-md text-label-md hover:bg-primary-container transition-all active:scale-95 shadow-sm flex items-center gap-2">
-        <span class="material-symbols-outlined">search</span> 搜索
+        class="flex-1 min-h-[44px] md:min-h-[48px] px-3 md:px-4 py-2 md:py-3 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-body-md text-body-md focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
+      <button type="submit" class="bg-primary text-on-primary px-4 md:px-6 py-2 md:py-3 rounded-xl font-label-md text-label-md hover:bg-primary-container transition-all active:scale-95 shadow-sm flex items-center gap-1 md:gap-2 shrink-0">
+        <span class="material-symbols-outlined">search</span> <span class="hidden md:inline">搜索</span>
       </button>
     </form>
-    <p class="font-label-sm text-label-sm text-on-surface-variant mt-2">完结后的文献会自动沉淀到这里，其他用户可以直接检索并下载。</p>
   </div>
 
   {% if not items %}

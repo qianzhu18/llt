@@ -73,18 +73,18 @@
       </article>
 
       <!-- Info chips -->
-      <div class="grid grid-cols-3 gap-4">
-        <div class="bg-surface-container-lowest rounded-xl p-4 border border-surface-container-highest text-center">
-          <strong class="text-2xl font-bold text-on-surface block">{{ req.year }}</strong>
+      <div class="grid grid-cols-3 gap-2 md:gap-4">
+        <div class="bg-surface-container-lowest rounded-xl p-3 md:p-4 border border-surface-container-highest text-center">
+          <strong class="text-xl md:text-2xl font-bold text-on-surface block">{{ req.year }}</strong>
           <span class="font-label-sm text-label-sm text-on-surface-variant">发表年份</span>
         </div>
-        <div class="bg-surface-container-lowest rounded-xl p-4 border border-surface-container-highest text-center">
-          <strong class="text-2xl font-bold text-[#F59E0B] block">{{ req.bounty }}</strong>
+        <div class="bg-surface-container-lowest rounded-xl p-3 md:p-4 border border-surface-container-highest text-center">
+          <strong class="text-xl md:text-2xl font-bold text-[#F59E0B] block">{{ req.bounty }}</strong>
           <span class="font-label-sm text-label-sm text-on-surface-variant">悬赏积分</span>
         </div>
-        <div class="bg-surface-container-lowest rounded-xl p-4 border border-surface-container-highest text-center">
-          <strong class="text-2xl font-bold text-on-surface block">{% if remaining %}{{ remaining }}{% else %}稳定{% endif %}</strong>
-          <span class="font-label-sm text-label-sm text-on-surface-variant">{% if req.status == 'awaiting_confirm' %}自动确认{% elif req.status == 'open' %}剩余有效{% else %}处理节奏{% endif %}</span>
+        <div class="bg-surface-container-lowest rounded-xl p-3 md:p-4 border border-surface-container-highest text-center">
+          <strong class="text-xl md:text-2xl font-bold text-on-surface block">{% if remaining %}{{ remaining }}{% else %}稳定{% endif %}</strong>
+          <span class="font-label-sm text-label-sm text-on-surface-variant leading-tight">{% if req.status == 'awaiting_confirm' %}自动确认{% elif req.status == 'open' %}剩余有效{% else %}处理节奏{% endif %}</span>
         </div>
       </div>
 
@@ -102,10 +102,10 @@
     </div>
 
     <!-- Right Column: Actions -->
-    <div class="lg:col-span-4 flex flex-col gap-6 sticky top-24">
+    <div class="lg:col-span-4 flex flex-col gap-6 md:sticky md:top-24">
 
       <!-- Action Card -->
-      <div class="bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,74,198,0.05)] border border-surface-container p-6 flex flex-col gap-6">
+      <div class="bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,74,198,0.05)] border border-surface-container p-4 md:p-6 flex flex-col gap-4 md:gap-6">
         <!-- Bounty -->
         <div class="text-center py-4 bg-background rounded-lg">
           <span class="font-label-md text-label-md text-on-surface-variant block mb-2">悬赏积分</span>

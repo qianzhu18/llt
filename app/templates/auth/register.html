@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block title %}注册 · {{ site_title }}{% endblock %}
 {% block content %}
-<div class="min-h-[70vh] flex items-center justify-center">
+<div class="min-h-[60vh] md:min-h-[70vh] flex items-center justify-center">
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full">
-    <!-- Left Side -->
-    <div class="rounded-2xl p-8 md:p-10 text-white flex flex-col justify-center" style="background: linear-gradient(135deg, rgba(29, 64, 174, 0.92), rgba(10, 145, 177, 0.84));">
+    <!-- Left Side: hidden on mobile -->
+    <div class="hidden md:flex rounded-2xl p-8 md:p-10 text-white flex-col justify-center" style="background: linear-gradient(135deg, rgba(29, 64, 174, 0.92), rgba(10, 145, 177, 0.84));">
       <h1 class="text-3xl md:text-4xl font-bold mb-3 leading-tight">注册后就能开始互助</h1>
       <p class="text-white/80 mb-8">平台用积分协调求助与应助，让每一次帮助都更明确、更可持续，也更方便沉淀到共享库。</p>
       <div class="space-y-4">
@@ -24,7 +24,7 @@
     </div>
 
     <!-- Right Side: Form -->
-    <div class="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm border border-surface-container-highest flex flex-col justify-center">
+    <div class="bg-surface-container-lowest rounded-2xl p-5 md:p-8 shadow-sm border border-surface-container-highest flex flex-col justify-center">
       <div class="mb-6">
         <h2 class="font-headline-lg text-headline-lg text-on-surface">注册账号</h2>
         <p class="font-body-md text-body-md text-on-surface-variant mt-1">创建账号即可参与互助与下载。</p>
