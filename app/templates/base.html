@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{% block title %}{{ site_title }}{% endblock %}</title>
+<!-- Performance: preconnect & DNS prefetch for external resources -->
+<link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="dns-prefetch" href="https://unpkg.com">
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Four:wght@400;500;700&family=Hanken+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
@@ -133,6 +138,12 @@ tailwind.config = {
   }
 </style>
 <script src="https://unpkg.com/htmx.org@2.0.3" defer></script>
+<style>
+  /* HTMX search indicator */
+  .htmx-indicator.search-spinner { display: none; }
+  .htmx-request .search-spinner { display: inline-flex; }
+  .htmx-request .search-icon { display: none; }
+</style>
 </head>
 <body class="text-on-background min-h-screen flex flex-col" style="background-color: #F9FAFB;">
 
@@ -147,13 +158,13 @@ tailwind.config = {
     <div class="flex items-center gap-6">
       <a class="hidden md:flex font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors
         {% if request.url.path == base_path ~ '/' or request.url.path == '/' %}text-primary font-bold border-b-2 border-primary{% endif %}"
-        href="{{ base_path }}/">首页</a>
+        href="{{ base_path }}/" prefetch>首页</a>
       <a class="hidden md:flex font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors
         {% if '/requests' in request.url.path %}text-primary font-bold border-b-2 border-primary{% endif %}"
-        href="{{ base_path }}/requests">求助大厅</a>
+        href="{{ base_path }}/requests" prefetch>求助大厅</a>
       <a class="hidden md:flex font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors
         {% if '/library' in request.url.path %}text-primary font-bold border-b-2 border-primary{% endif %}"
-        href="{{ base_path }}/library">共享库</a>
+        href="{{ base_path }}/library" prefetch>共享库</a>
       {% if current_user %}
         {% if current_user.is_admin %}
           <a class="hidden md:flex font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors
