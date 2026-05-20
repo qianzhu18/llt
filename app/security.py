@@ -1,10 +1,12 @@
-"""Auth primitives: password hashing, signed-cookie session, email-verify tokens, FastAPI deps."""
+"""Auth primitives: password hashing, signed-cookie session, CSRF, email-verify tokens, FastAPI deps."""
 from __future__ import annotations
 
+import hmac
+import secrets
 from typing import Optional
 
 import bcrypt
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Form, HTTPException, Request, status
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy.orm import Session
 
@@ -15,10 +17,13 @@ from .settings import settings
 
 SESSION_COOKIE = "litshare_session"
 SESSION_MAX_AGE = 60 * 60 * 24 * 30  # 30 days
+CSRF_COOKIE = "litshare_csrf"
+CSRF_MAX_AGE = 60 * 60 * 24 * 7  # 7 days
 VERIFY_TOKEN_MAX_AGE = 60 * 60 * 24  # 24 hours
 BCRYPT_ROUNDS = 12
 
 _session_signer = URLSafeTimedSerializer(settings.SECRET_KEY, salt="litshare-session")
+_csrf_signer = URLSafeTimedSerializer(settings.SECRET_KEY, salt="litshare-csrf")
 _verify_signer = URLSafeTimedSerializer(settings.SECRET_KEY, salt="litshare-email-verify")
 
 
@@ -68,6 +73,11 @@ def cookie_path(request: Request) -> str:
     return request.scope.get("root_path", "") or "/"
 
 
+def cookie_secure(request: Request) -> bool:
+    proto = (request.headers.get("x-forwarded-proto") or request.url.scheme or "").lower()
+    return proto == "https"
+
+
 def set_session_cookie(response, user_id: int, request: Request) -> None:
     response.set_cookie(
         SESSION_COOKIE,
@@ -75,13 +85,58 @@ def set_session_cookie(response, user_id: int, request: Request) -> None:
         max_age=SESSION_MAX_AGE,
         httponly=True,
         samesite="lax",
-        secure=not settings.DEBUG,
+        secure=cookie_secure(request),
         path=cookie_path(request),
     )
 
 
 def clear_session_cookie(response, request: Request) -> None:
     response.delete_cookie(SESSION_COOKIE, path=cookie_path(request))
+
+
+def make_csrf_token() -> str:
+    return _csrf_signer.dumps(secrets.token_urlsafe(32))
+
+
+def read_csrf_token(token: str) -> Optional[str]:
+    try:
+        value = _csrf_signer.loads(token, max_age=CSRF_MAX_AGE)
+        return str(value)
+    except (BadSignature, SignatureExpired, ValueError):
+        return None
+
+
+def set_csrf_cookie(response, request: Request, token: str) -> None:
+    response.set_cookie(
+        CSRF_COOKIE,
+        token,
+        max_age=CSRF_MAX_AGE,
+        httponly=True,
+        samesite="lax",
+        secure=cookie_secure(request),
+        path=cookie_path(request),
+    )
+
+
+def ensure_csrf_token(request: Request) -> str:
+    token = request.cookies.get(CSRF_COOKIE) or ""
+    if read_csrf_token(token) is None:
+        token = make_csrf_token()
+    return token
+
+
+def csrf_valid(request: Request, form_token: str) -> bool:
+    cookie_token = request.cookies.get(CSRF_COOKIE) or ""
+    if not form_token or not cookie_token:
+        return False
+    if not hmac.compare_digest(cookie_token, form_token):
+        return False
+    return read_csrf_token(cookie_token) is not None
+
+
+def require_csrf(request: Request, csrf_token: str = Form("", alias="_csrf")) -> None:
+    if not csrf_valid(request, csrf_token):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="csrf_invalid")
 
 
 def current_user(request: Request, db: Session = Depends(get_db)) -> Optional[User]:

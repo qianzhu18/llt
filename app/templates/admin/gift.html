@@ -6,6 +6,7 @@
   {% if msg %}<p class="alert ok">{{ msg }}</p>{% endif %}
   {% if err %}<p class="alert error">{{ err }}</p>{% endif %}
   <form method="post" action="{{ base_path }}/admin/gift">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
     <label>目标用户（邮箱 或 用户 ID）
       <input type="text" name="target" required placeholder="alice@example.com 或 42">
     </label>

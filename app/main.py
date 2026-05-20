@@ -9,14 +9,15 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
 
 from .db import Base, SessionLocal, engine, get_db
-from .models import HelpRequest, PointTransaction, User
+from .models import HelpRequest, LibraryPaper, PointTransaction, User
 from .points import REASON_HELP_ACCEPTED, REASON_PUBLISH_DEDUCT
 from .routers import admin as admin_router
 from .routers import auth as auth_router
+from .routers import library as library_router
 from .routers import me as me_router
 from .routers import requests as requests_router
 from .security import current_user
@@ -41,6 +42,8 @@ logger = logging.getLogger("lit-share.main")
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 UPLOAD_DIR = ROOT / "uploads"
+DEPLOY_BRANCH_FILE = ROOT / ".deploy_branch"
+DEPLOY_REV_FILE = ROOT / ".deploy_rev"
 DATA_DIR.mkdir(exist_ok=True)
 UPLOAD_DIR.mkdir(exist_ok=True)
 
@@ -109,12 +112,28 @@ app.mount("/static", StaticFiles(directory=str(ROOT / "app" / "static")), name="
 app.include_router(auth_router.router)
 app.include_router(me_router.router)
 app.include_router(requests_router.router)
+app.include_router(library_router.router)
 app.include_router(admin_router.router)
 
 
 @app.exception_handler(HTTPException)
 async def http_exc_handler(request: Request, exc: HTTPException):
     """Redirect unauthenticated HTML GETs to login; otherwise fall through."""
+    if (
+        exc.status_code == status.HTTP_403_FORBIDDEN
+        and exc.detail == "csrf_invalid"
+        and "text/html" in request.headers.get("accept", "")
+    ):
+        return render(
+            request,
+            "auth/notice.html",
+            current_user=None,
+            title="表单已失效",
+            message="这个页面可能开太久了。刷新后再提交一次就好。",
+            action_label="返回首页",
+            action_url="/",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
     if (
         exc.status_code == status.HTTP_401_UNAUTHORIZED
         and exc.detail == "login_required"
@@ -135,7 +154,14 @@ async def http_exc_handler(request: Request, exc: HTTPException):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.5.0-m4"}
+    branch = DEPLOY_BRANCH_FILE.read_text(encoding="utf-8").strip() if DEPLOY_BRANCH_FILE.exists() else ""
+    rev = DEPLOY_REV_FILE.read_text(encoding="utf-8").strip() if DEPLOY_REV_FILE.exists() else ""
+    return {
+        "status": "ok",
+        "version": rev[:7] if rev else "workspace",
+        "deploy_branch": branch or None,
+        "deploy_rev": rev or None,
+    }
 
 
 def _recent_activities(db: Session, limit: int = 15) -> list[dict]:
@@ -157,6 +183,12 @@ def _recent_activities(db: Session, limit: int = 15) -> list[dict]:
     return out
 
 
+def _recent_library(db: Session, limit: int = 6) -> list[LibraryPaper]:
+    return db.scalars(
+        select(LibraryPaper).order_by(desc(LibraryPaper.created_at)).limit(limit)
+    ).all()
+
+
 @app.get("/", response_class=HTMLResponse)
 def index(
     request: Request,
@@ -167,4 +199,6 @@ def index(
         request, "index.html",
         current_user=user,
         activities=_recent_activities(db),
+        recent_library=_recent_library(db),
+        library_count=db.scalar(select(func.count(LibraryPaper.id))) or 0,
     )

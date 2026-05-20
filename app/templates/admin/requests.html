@@ -33,6 +33,7 @@
               {% if it.req.status not in ('closed', 'expired', 'completed') %}
                 <form method="post" action="{{ base_path }}/admin/requests/{{ it.req.id }}/close" class="inline-form"
                       onsubmit="return confirm('强制关闭 #{{ it.req.id }} ？积分将退给 {{ it.email }}');">
+                  <input type="hidden" name="_csrf" value="{{ csrf_token }}">
                   <input type="hidden" name="note" value="admin 手动关闭">
                   <button type="submit" class="link-btn" style="color:#dc2626;">关闭</button>
                 </form>

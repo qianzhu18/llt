@@ -1,46 +1,90 @@
 {% extends "base.html" %}
-{% block title %}待应助大厅 · {{ site_title }}{% endblock %}
+{% block title %}求助大厅 · {{ site_title }}{% endblock %}
 {% block content %}
-<section class="page-head">
-  <h2>📥 待应助大厅</h2>
-  <p class="muted small">共 {{ total }} 条待应助</p>
-  {% if current_user %}
-    <a href="{{ base_path }}/requests/new" class="btn primary">📝 发布求助</a>
-  {% else %}
-    <a href="{{ base_path }}/auth/login?next={{ base_path }}/requests/new" class="btn primary">登录后发布</a>
-  {% endif %}
-</section>
+<div class="space-y-8">
 
-{% if not items %}
-  <section class="card muted">
-    <p>暂时没有等待应助的求助。{% if current_user %}<a href="{{ base_path }}/requests/new">发起第一个</a>？{% endif %}</p>
-  </section>
-{% endif %}
-
-{% for it in items %}
-  <a class="card req-card" href="{{ base_path }}/requests/{{ it.req.id }}">
-    <div class="req-head">
-      <h3 class="req-title">{{ it.req.title }}</h3>
-      <span class="bounty">+{{ it.req.bounty }}</span>
+  <!-- Page Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">求助大厅</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">当前共有 {{ total }} 条公开请求，按标题信息、积分和剩余时效快速浏览。</p>
     </div>
-    <p class="meta">
-      <span>{{ it.req.authors }}</span>
-      {% if it.req.journal %}<span>·</span><span>{{ it.req.journal }}</span>{% endif %}
-      <span>·</span><span>{{ it.req.year }}</span>
-    </p>
-    <p class="meta-foot muted small">
-      <span>求助人 {{ it.requester_nickname }}</span>
-      <span>·</span>
-      <span>{{ it.remaining }}</span>
-    </p>
-  </a>
-{% endfor %}
+    {% if current_user %}
+      <a href="{{ base_path }}/requests/new" class="hidden md:flex bg-primary text-on-primary font-label-md text-label-md px-6 py-3 rounded-full hover:bg-primary-container transition-all active:scale-95 shadow-sm items-center gap-2">
+        <span class="material-symbols-outlined">add</span> 发布求助
+      </a>
+    {% else %}
+      <a href="{{ base_path }}/auth/login?next={{ base_path }}/requests/new" class="hidden md:flex bg-primary text-on-primary font-label-md text-label-md px-6 py-3 rounded-full hover:bg-primary-container transition-all active:scale-95 shadow-sm items-center gap-2">
+        <span class="material-symbols-outlined">login</span> 登录后发布
+      </a>
+    {% endif %}
+  </div>
 
-{% if has_next or page > 1 %}
-  <nav class="pager">
-    {% if page > 1 %}<a href="{{ base_path }}/requests?page={{ page-1 }}">‹ 上一页</a>{% endif %}
-    <span class="muted">第 {{ page }} 页</span>
-    {% if has_next %}<a href="{{ base_path }}/requests?page={{ page+1 }}">下一页 ›</a>{% endif %}
-  </nav>
+  {% if not items %}
+    <div class="bg-surface-container-lowest rounded-xl p-8 shadow-sm border border-surface-container-highest text-center">
+      <span class="material-symbols-outlined text-5xl text-on-surface-variant/40 mb-4 block">inbox</span>
+      <p class="font-body-md text-body-md text-on-surface-variant">暂时没有等待应助的求助。{% if current_user %}<a href="{{ base_path }}/requests/new" class="text-primary font-semibold hover:underline">发起第一篇</a>也不错。{% endif %}</p>
+    </div>
+  {% endif %}
+
+  <!-- Request Grid -->
+  <div class="grid grid-cols-1 gap-6">
+    {% for it in items %}
+      <a href="{{ base_path }}/requests/{{ it.req.id }}" class="request-card bg-surface-container-lowest rounded-xl border border-surface-container-highest flex flex-col justify-between h-full relative overflow-hidden group py-4 px-6 block">
+        <div>
+          <div class="flex justify-between items-start mb-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full font-label-md text-label-sm
+              {% if it.req.status == 'open' %}bg-[#FEF3C7] text-[#92400E]
+              {% elif it.req.status in ('claimed', 'awaiting_confirm') %}bg-primary-fixed text-on-primary-fixed
+              {% elif it.req.status == 'completed' %}bg-[#D1FAE5] text-[#065F46]
+              {% else %}bg-gray-100 text-gray-500{% endif %}">
+              {{ {'open':'等待帮助','claimed':'进行中','awaiting_confirm':'待确认','completed':'已完成','closed':'已关闭','expired':'已过期'}.get(it.req.status, it.req.status) }}
+            </span>
+            <span class="bg-secondary/10 text-secondary font-label-sm text-label-sm px-3 py-1 rounded-full font-bold flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm">stars</span> {{ it.req.bounty }} 积分
+            </span>
+          </div>
+          <h2 class="font-headline-md text-on-surface mb-1 line-clamp-2 group-hover:text-primary transition-colors cursor-pointer text-xl font-bold">
+            {{ it.req.title }}
+          </h2>
+          <div class="font-label-sm text-label-sm text-on-surface-variant space-y-0.5 mb-2">
+            <p>作者: {{ it.req.authors }}</p>
+            <p>年份: {{ it.req.year }}{% if it.req.journal %} | {{ it.req.journal }}{% endif %}</p>
+          </div>
+        </div>
+        <div class="mt-2 pt-2 border-t border-surface-container-high flex justify-between items-center">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center text-on-surface font-label-md">
+              {{ it.requester_nickname[:2] | upper }}
+            </div>
+            <div class="flex flex-col">
+              <span class="font-label-md text-label-sm text-on-surface leading-tight">{{ it.requester_nickname }}</span>
+              <span class="font-label-sm text-label-sm text-outline leading-tight">{{ it.remaining }}</span>
+            </div>
+          </div>
+          <span class="px-4 py-1.5 rounded-lg bg-secondary text-on-secondary font-label-md text-label-sm hover:opacity-90 transition-colors">
+            {% if it.req.status == 'open' %}提供帮助{% elif it.req.status == 'completed' %}查看详情{% else %}查看进度{% endif %}
+          </span>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+
+  <!-- Load More / Pagination -->
+  {% if has_next or page > 1 %}
+    <nav class="flex justify-center items-center gap-6 pt-4">
+      {% if page > 1 %}<a href="{{ base_path }}/requests?page={{ page-1 }}" class="font-label-md text-label-md text-primary hover:text-primary-container transition-colors">&lsaquo; 上一页</a>{% endif %}
+      <span class="font-label-md text-label-md text-on-surface-variant">第 {{ page }} 页</span>
+      {% if has_next %}<a href="{{ base_path }}/requests?page={{ page+1 }}" class="font-label-md text-label-md text-primary hover:text-primary-container transition-colors">下一页 &rsaquo;</a>{% endif %}
+    </nav>
+  {% endif %}
+
+</div>
+
+<!-- Mobile FAB -->
+{% if current_user %}
+  <a href="{{ base_path }}/requests/new" class="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:opacity-90 active:scale-95 transition-all z-40">
+    <span class="material-symbols-outlined text-[28px]">add</span>
+  </a>
 {% endif %}
 {% endblock %}

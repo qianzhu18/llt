@@ -4,36 +4,209 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{% block title %}{{ site_title }}{% endblock %}</title>
-<link rel="stylesheet" href="{{ base_path }}/static/app.css">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+Four:wght@400;500;700&family=Hanken+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        secondary: "#00677f",
+        "inverse-on-surface": "#edf0ff",
+        "on-tertiary-container": "#b9bbbc",
+        "on-primary-container": "#a8b8ff",
+        "on-primary-fixed-variant": "#163baa",
+        "error-container": "#ffdad6",
+        "outline-variant": "#c4c5d5",
+        "on-tertiary-fixed": "#191c1d",
+        "on-secondary": "#ffffff",
+        "surface-container-highest": "#dde2f6",
+        "tertiary-container": "#494b4c",
+        "secondary-fixed": "#b6eaff",
+        "on-secondary-container": "#006077",
+        "on-tertiary": "#ffffff",
+        surface: "#faf8ff",
+        primary: "#00298c",
+        "tertiary-fixed-dim": "#c5c7c8",
+        "secondary-fixed-dim": "#6cd3f6",
+        "primary-container": "#1d40ae",
+        "secondary-container": "#75dcfe",
+        "primary-fixed-dim": "#b7c4ff",
+        "surface-dim": "#d4d9ed",
+        "surface-variant": "#dde2f6",
+        "inverse-primary": "#b7c4ff",
+        background: "#faf8ff",
+        "surface-tint": "#3655c3",
+        "on-secondary-fixed": "#001f28",
+        "on-primary": "#ffffff",
+        "on-secondary-fixed-variant": "#004e60",
+        "surface-bright": "#faf8ff",
+        "surface-container-lowest": "#ffffff",
+        "on-tertiary-fixed-variant": "#454748",
+        "surface-container-high": "#e2e8fc",
+        "on-primary-fixed": "#001452",
+        error: "#ba1a1a",
+        "surface-container": "#e9edff",
+        "on-surface-variant": "#444653",
+        "tertiary-fixed": "#e1e3e4",
+        "inverse-surface": "#2a303f",
+        tertiary: "#323536",
+        "on-error": "#ffffff",
+        "on-background": "#151b29",
+        "surface-container-low": "#f1f3ff",
+        "on-surface": "#151b29",
+        "on-error-container": "#93000a",
+        "primary-fixed": "#dde1ff",
+        outline: "#747684",
+        "closed-gray": "#64748B",
+        "seeking-gold": "#F59E0B",
+        "resolved-green": "#10B981"
+      },
+      borderRadius: {
+        DEFAULT: "0.125rem", lg: "0.25rem", xl: "0.5rem", full: "0.75rem"
+      },
+      spacing: {
+        sm: "12px", xl: "80px", lg: "48px", base: "8px",
+        "margin-mobile": "16px", "margin-desktop": "64px",
+        md: "24px", gutter: "24px", xs: "4px", "container-max": "1200px"
+      },
+      fontFamily: {
+        "label-sm": ["Hanken Grotesk"], "body-lg": ["Hanken Grotesk"],
+        "label-md": ["Hanken Grotesk"], "headline-md": ["Source Serif 4"],
+        "display-lg": ["Source Serif 4"], "headline-lg": ["Source Serif 4"],
+        "body-md": ["Hanken Grotesk"], "headline-lg-mobile": ["Source Serif 4"],
+        headline: ["Source Serif Four"], display: ["Source Serif Four"],
+        body: ["Hanken Grotesk"], label: ["Hanken Grotesk"]
+      },
+      fontSize: {
+        "label-sm": ["12px", {lineHeight: "16px", fontWeight: "500"}],
+        "body-lg": ["18px", {lineHeight: "28px", fontWeight: "400"}],
+        "label-md": ["14px", {lineHeight: "20px", letterSpacing: "0.05em", fontWeight: "600"}],
+        "headline-md": ["24px", {lineHeight: "32px", fontWeight: "600"}],
+        "display-lg": ["56px", {lineHeight: "64px", letterSpacing: "-0.02em", fontWeight: "700"}],
+        "headline-lg": ["32px", {lineHeight: "40px", fontWeight: "600"}],
+        "body-md": ["16px", {lineHeight: "24px", fontWeight: "400"}],
+        "headline-lg-mobile": ["28px", {lineHeight: "36px", fontWeight: "600"}]
+      }
+    }
+  }
+};
+</script>
+<style>
+  body { font-family: 'Hanken Grotesk', sans-serif; }
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .icon-fill { font-variation-settings: 'FILL' 1; }
+  .glass-card {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  .request-card { transition: all 0.2s ease-in-out; }
+  .request-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(29, 64, 174, 0.05), 0 8px 10px -6px rgba(29, 64, 174, 0.05);
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; opacity: 0; }
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .reveal-on-scroll {
+    opacity: 0; transform: translateY(20px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out, box-shadow 0.3s ease, transform 0.3s ease;
+  }
+  .reveal-on-scroll.is-visible { opacity: 1; transform: translateY(0); }
+  .reveal-on-scroll.is-visible:hover { transform: translateY(-4px) scale(1.01); }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+    .animate-fade-in-up, .reveal-on-scroll { opacity: 1 !important; transform: none !important; }
+    .reveal-on-scroll.is-visible:hover, .request-card:hover { transform: none !important; }
+  }
+</style>
 <script src="https://unpkg.com/htmx.org@2.0.3" defer></script>
-<script src="https://unpkg.com/alpinejs@3.14.7/dist/cdn.min.js" defer></script>
 </head>
-<body>
-<nav class="navbar">
-  <a href="{{ base_path }}/" class="brand">📚 {{ site_title }}</a>
-  <div class="nav-links">
-    <a href="{{ base_path }}/">首页</a>
-    <a href="{{ base_path }}/requests">大厅</a>
-    {% if current_user %}
-      {% if current_user.is_admin %}<a href="{{ base_path }}/admin" class="admin-link">★ 管理</a>{% endif %}
-      <a href="{{ base_path }}/me">{{ current_user.nickname or current_user.email }}</a>
-      <form method="post" action="{{ base_path }}/auth/logout" class="inline-form">
-        <button type="submit" class="link-btn">登出</button>
-      </form>
-    {% else %}
-      <a href="{{ base_path }}/auth/login">登录</a>
-      <a href="{{ base_path }}/auth/register" class="nav-cta">注册</a>
-    {% endif %}
-  </div>
-</nav>
+<body class="text-on-background min-h-screen flex flex-col" style="background-color: #F9FAFB;">
 
-<main class="container">
-{% block content %}{% endblock %}
+<!-- TopNavBar -->
+<header class="shadow-sm fixed top-0 w-full z-50 h-16 bg-white">
+  <div class="flex justify-between items-center px-margin-mobile md:px-margin-desktop h-full max-w-container-max mx-auto">
+    <div class="flex items-center">
+      <a class="text-headline-lg-mobile md:text-headline-lg text-primary text-xl font-semibold" href="{{ base_path }}/">
+        {{ site_title }}
+      </a>
+    </div>
+    <div class="flex items-center gap-6">
+      <a class="hidden md:flex font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors
+        {% if request.url.path == base_path ~ '/' or request.url.path == '/' %}text-primary font-bold border-b-2 border-primary{% endif %}"
+        href="{{ base_path }}/">首页</a>
+      <a class="hidden md:flex font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors
+        {% if '/requests' in request.url.path %}text-primary font-bold border-b-2 border-primary{% endif %}"
+        href="{{ base_path }}/requests">求助大厅</a>
+      <a class="hidden md:flex font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors
+        {% if '/library' in request.url.path %}text-primary font-bold border-b-2 border-primary{% endif %}"
+        href="{{ base_path }}/library">共享库</a>
+      {% if current_user %}
+        {% if current_user.is_admin %}
+          <a class="hidden md:flex font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors
+            {% if '/admin' in request.url.path %}text-primary font-bold border-b-2 border-primary{% endif %}"
+            href="{{ base_path }}/admin">管理台</a>
+        {% endif %}
+        <a class="hidden md:flex font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors
+          {% if '/me' in request.url.path %}text-primary font-bold border-b-2 border-primary{% endif %}"
+          href="{{ base_path }}/me">{{ current_user.nickname or current_user.email }}</a>
+        <form method="post" action="{{ base_path }}/auth/logout" class="inline">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+          <button type="submit" class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors cursor-pointer">退出</button>
+        </form>
+      {% else %}
+        <a class="hidden md:flex font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors
+          {% if '/auth/login' in request.url.path %}text-primary font-bold border-b-2 border-primary{% endif %}"
+          href="{{ base_path }}/auth/login">登录</a>
+        <a class="bg-primary text-on-primary font-label-md text-label-md px-6 py-2 rounded-full hover:bg-primary-container transition-all active:scale-95
+          {% if '/auth/register' in request.url.path %}ring-2 ring-primary{% endif %}"
+          href="{{ base_path }}/auth/register">注册</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+<main class="flex-grow pt-20 pb-16 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto w-full">
+  {% block content %}{% endblock %}
 </main>
 
-<footer>
-  <p>互助文件仅供个人学习研究，禁止盈利或传播</p>
-  <p class="muted">© {{ site_title }} · 公益项目</p>
+<!-- Footer -->
+<footer class="w-full mt-auto py-12 px-margin-mobile md:px-margin-desktop flex flex-col items-center justify-center max-w-container-max mx-auto text-center">
+  <div class="space-y-4 max-w-2xl">
+    <div class="font-headline-md text-headline-md font-bold text-on-surface opacity-80">{{ site_title }}</div>
+    <p class="font-label-md text-label-md text-primary opacity-60">&copy; ScholarAid 互助社区 &middot; 致力于开放知识共享</p>
+    <p class="font-label-md text-label-md text-on-surface-variant opacity-60">互助文件仅供个人学习研究，禁止盈利或传播</p>
+  </div>
 </footer>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { rootMargin: '0px', threshold: 0.1 });
+  document.querySelectorAll('.reveal-on-scroll').forEach(function(el, i) {
+    el.style.transitionDelay = (i % 2) * 100 + 'ms';
+    observer.observe(el);
+  });
+});
+</script>
 </body>
 </html>
