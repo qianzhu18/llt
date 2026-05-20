@@ -1,188 +1,291 @@
 {% extends "base.html" %}
 {% block title %}{{ req.title }} · {{ site_title }}{% endblock %}
 {% block content %}
+<div class="space-y-8">
 
-{% if flash_err %}<p class="alert error">{{ flash_err }}</p>{% endif %}
-{% if flash_msg %}<p class="alert ok">{{ flash_msg }}</p>{% endif %}
+  {% if flash_err %}
+    <div class="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-xl font-label-md text-label-md flex items-center gap-2">
+      <span class="material-symbols-outlined">error</span> {{ flash_err }}
+    </div>
+  {% endif %}
+  {% if flash_msg %}
+    <div class="bg-[#D1FAE5]/50 border border-[#065F46]/20 text-[#065F46] px-4 py-3 rounded-xl font-label-md text-label-md flex items-center gap-2">
+      <span class="material-symbols-outlined">check_circle</span> {{ flash_msg }}
+    </div>
+  {% endif %}
 
-<section class="card">
-  <div class="req-head">
-    <h2 class="req-title">{{ req.title }}</h2>
-    <span class="bounty">+{{ req.bounty }}</span>
+  <!-- Back Navigation -->
+  <div class="mb-2">
+    <a href="{{ base_path }}/requests" class="inline-flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors font-label-md text-label-md">
+      <span class="material-symbols-outlined text-lg">arrow_back</span> 返回大厅
+    </a>
   </div>
-  <dl class="kv">
-    <dt>作者</dt><dd>{{ req.authors }}</dd>
-    {% if req.journal %}<dt>期刊</dt><dd>{{ req.journal }}</dd>{% endif %}
-    <dt>年份</dt><dd>{{ req.year }}</dd>
-    {% if req.extra %}<dt>补充</dt><dd style="white-space:pre-wrap;">{{ req.extra }}</dd>{% endif %}
-    <dt>求助人</dt><dd>{{ requester_nickname }}{% if is_owner %}（我）{% endif %}</dd>
-    <dt>状态</dt><dd><span class="status-{{ req.status }}">{{ {'open':'待应助','claimed':'已认领','awaiting_confirm':'待确认','completed':'已完结','closed':'已关闭','expired':'已过期'}.get(req.status, req.status) }}</span></dd>
-    {% if remaining %}
-      <dt>{% if req.status == 'open' %}截止{% elif req.status == 'awaiting_confirm' %}自动确认{% endif %}</dt>
-      <dd>{{ remaining }}{% if req.status == 'awaiting_confirm' %} 后自动确认{% endif %}</dd>
-    {% endif %}
-    {% if helper_nickname %}<dt>应助人</dt><dd>{{ helper_nickname }}{% if is_helper %}（我）{% endif %}</dd>{% endif %}
-  </dl>
-</section>
 
-{# ====== 状态 + 角色 ====== #}
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <!-- Left Column: Request Details -->
+    <div class="lg:col-span-8 flex flex-col gap-6">
 
-{# ---- open ---- #}
-{% if req.status == 'open' %}
-  {% if not current_user %}
-    <section class="card muted small">
-      <p><a href="{{ base_path }}/auth/login?next={{ base_path }}/requests/{{ req.id }}">登录</a>后即可应助。</p>
-    </section>
-  {% elif is_owner %}
-    <section class="card muted small">
-      <p>等待应助中。如需取消请联系管理员关闭（会全额退回悬赏积分）。</p>
-    </section>
-  {% else %}
-    <section class="card">
-      <h3 style="margin-bottom:8px;">🤝 我来应助</h3>
-      <p class="muted small">认领后请尽快上传 PDF（≤ {{ max_mb }}MB），完成应助可获得 <strong>+{{ req.bounty }}</strong> 积分。</p>
-      <form method="post" action="{{ base_path }}/requests/{{ req.id }}/claim" style="margin-top:12px;">
-        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-        <button type="submit" class="btn primary block">我来应助 (+{{ req.bounty }} 积分)</button>
-      </form>
-    </section>
-  {% endif %}
+      <!-- Request Metadata Card -->
+      <article class="bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,74,198,0.05)] p-6 md:p-8">
+        <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
+          <h1 class="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-lg md:text-headline-lg text-primary">
+            {{ req.title }}
+          </h1>
+          <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full font-label-md text-label-md whitespace-nowrap shrink-0
+            {% if req.status == 'open' %}bg-[#FEF3C7] text-[#92400E]
+            {% elif req.status in ('claimed', 'awaiting_confirm') %}bg-primary-fixed text-on-primary-fixed
+            {% elif req.status == 'completed' %}bg-[#D1FAE5] text-[#065F46]
+            {% else %}bg-gray-100 text-gray-500{% endif %}">
+            {{ {'open':'等待帮助','claimed':'已认领','awaiting_confirm':'待确认','completed':'已完结','closed':'已关闭','expired':'已过期'}.get(req.status, req.status) }}
+          </span>
+        </div>
 
-{# ---- claimed ---- #}
-{% elif req.status == 'claimed' %}
-  {% if is_helper %}
-    <section class="card">
-      <h3 style="margin-bottom:10px;">📤 上传 PDF</h3>
-      <p class="muted small">
-        最大 {{ max_mb }}MB。
-        {% if desensitize_on %}
-          系统会自动脱敏（清除元数据 + 涂黑首尾页可见邮箱/IP）。
-        {% else %}
-          当前为原件模式（admin 关闭了脱敏，将以原始 PDF 提供下载）。
+        <!-- Metadata Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6 border-y border-surface-container-high py-6">
+          <div class="flex flex-col gap-1">
+            <span class="font-label-md text-label-md text-on-surface-variant">作者</span>
+            <span class="font-body-md text-body-md text-on-surface font-medium">{{ req.authors }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="font-label-md text-label-md text-on-surface-variant">出版日期</span>
+            <span class="font-body-md text-body-md text-on-surface font-medium">{{ req.year }}</span>
+          </div>
+          {% if req.journal %}
+          <div class="flex flex-col gap-1">
+            <span class="font-label-md text-label-md text-on-surface-variant">期刊</span>
+            <span class="font-body-md text-body-md text-on-surface font-medium">{{ req.journal }}</span>
+          </div>
+          {% endif %}
+          <div class="flex flex-col gap-1">
+            <span class="font-label-md text-label-md text-on-surface-variant">求助人</span>
+            <span class="font-body-md text-body-md text-on-surface font-medium">{{ requester_nickname }}{% if is_owner %}（我）{% endif %}</span>
+          </div>
+        </div>
+
+        {% if req.extra %}
+        <div>
+          <h2 class="font-headline-md text-headline-md text-primary mb-3 flex items-center gap-2 text-lg">
+            <span class="material-symbols-outlined">description</span> 补充说明
+          </h2>
+          <p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">{{ req.extra }}</p>
+        </div>
         {% endif %}
-      </p>
-      <form method="post" action="{{ base_path }}/requests/{{ req.id }}/upload"
-            enctype="multipart/form-data" style="margin-top:12px;">
-        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-        <label>选择 PDF 文件
-          <input type="file" name="pdf" accept="application/pdf,.pdf" required>
-        </label>
-        <button type="submit" class="btn primary block">上传 PDF</button>
-      </form>
-      <form method="post" action="{{ base_path }}/requests/{{ req.id }}/release"
-            style="margin-top:12px;"
-            onsubmit="return confirm('放弃应助后任务将回到待应助大厅，其他人可重新认领。确定吗？');">
-        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-        <button type="submit" class="btn link-btn" style="color:var(--muted);">放弃应助（任务释放）</button>
-      </form>
-    </section>
-  {% elif is_owner %}
-    <section class="card muted small">
-      <p>{{ helper_nickname }} 已认领，正在准备 PDF。</p>
-    </section>
-  {% else %}
-    <section class="card muted small">
-      <p>已被 {{ helper_nickname }} 认领。</p>
-    </section>
-  {% endif %}
+      </article>
 
-{# ---- awaiting_confirm ---- #}
-{% elif req.status == 'awaiting_confirm' %}
-  {% if is_owner %}
-    <section class="card">
-      <h3 style="margin-bottom:8px;">✅ 确认应助</h3>
-      <p class="muted small">
-        {{ helper_nickname }} 已上传 PDF。请确认内容无误后点击「确认接收」，
-        <strong>+{{ req.bounty }}</strong> 积分将立刻转给应助者。
-        <br>{{ remaining }} 后系统会自动确认。
-      </p>
-      <div class="action-row" style="margin-top:12px;">
-        <a href="{{ base_path }}/requests/{{ req.id }}/download" class="btn secondary" target="_blank">📄 预览下载</a>
-        <form method="post" action="{{ base_path }}/requests/{{ req.id }}/confirm" class="inline-form">
-          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-          <button type="submit" class="btn primary">确认接收</button>
-        </form>
+      <!-- Info chips -->
+      <div class="grid grid-cols-3 gap-4">
+        <div class="bg-surface-container-lowest rounded-xl p-4 border border-surface-container-highest text-center">
+          <strong class="text-2xl font-bold text-on-surface block">{{ req.year }}</strong>
+          <span class="font-label-sm text-label-sm text-on-surface-variant">发表年份</span>
+        </div>
+        <div class="bg-surface-container-lowest rounded-xl p-4 border border-surface-container-highest text-center">
+          <strong class="text-2xl font-bold text-[#F59E0B] block">{{ req.bounty }}</strong>
+          <span class="font-label-sm text-label-sm text-on-surface-variant">悬赏积分</span>
+        </div>
+        <div class="bg-surface-container-lowest rounded-xl p-4 border border-surface-container-highest text-center">
+          <strong class="text-2xl font-bold text-on-surface block">{% if remaining %}{{ remaining }}{% else %}稳定{% endif %}</strong>
+          <span class="font-label-sm text-label-sm text-on-surface-variant">{% if req.status == 'awaiting_confirm' %}自动确认{% elif req.status == 'open' %}剩余有效{% else %}处理节奏{% endif %}</span>
+        </div>
       </div>
-      <details style="margin-top:14px;">
-        <summary class="muted small" style="cursor:pointer;">驳回（要求重新上传）</summary>
-        <form method="post" action="{{ base_path }}/requests/{{ req.id }}/reject" style="margin-top:10px;">
-          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-          <label>驳回原因（可选）
-            <textarea name="reason" rows="3" maxlength="500" placeholder="例: 文件损坏 / 不是同一篇 / 缺页..."></textarea>
-          </label>
-          <button type="submit" class="btn block" style="background:#dc2626;color:#fff;">驳回，任务回到大厅</button>
-        </form>
-      </details>
-    </section>
-  {% elif is_helper %}
-    <section class="card">
-      <p>已上传 PDF，等待求助者确认。</p>
-      <p class="muted small">{{ remaining }} 后系统会自动确认（积分自动到账）。</p>
-      <p style="margin-top:8px;">
-        <a href="{{ base_path }}/requests/{{ req.id }}/download" target="_blank">📄 查看我上传的 PDF</a>
-      </p>
-    </section>
-  {% else %}
-    <section class="card muted small">
-      <p>已上传 PDF，等待求助者确认。</p>
-    </section>
-  {% endif %}
 
-{# ---- completed ---- #}
-{% elif req.status == 'completed' %}
-  <section class="card">
-    <p>已完结。文献已沉淀到共享文献库，欢迎下载。</p>
-    {% if current_user %}
-      <p style="margin-top:12px;">
-        <a href="{{ base_path }}/requests/{{ req.id }}/download" class="btn primary">📥 下载 PDF{% if desensitize_on %}（脱敏版）{% else %}（原件）{% endif %}</a>
-      </p>
-    {% else %}
-      <p style="margin-top:12px;">
-        <a href="{{ base_path }}/auth/login?next={{ base_path }}/requests/{{ req.id }}" class="btn secondary">登录后下载</a>
-      </p>
+      {% if helper_nickname %}
+      <!-- Helper info -->
+      <div class="bg-surface-container-lowest rounded-xl p-4 border border-surface-container-highest flex items-center gap-4">
+        <div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold">
+          {{ helper_nickname[:1] | upper }}
+        </div>
+        <div>
+          <span class="font-label-md text-label-md text-on-surface">应助人: {{ helper_nickname }}{% if is_helper %}（我）{% endif %}</span>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Right Column: Actions -->
+    <div class="lg:col-span-4 flex flex-col gap-6 sticky top-24">
+
+      <!-- Action Card -->
+      <div class="bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,74,198,0.05)] border border-surface-container p-6 flex flex-col gap-6">
+        <!-- Bounty -->
+        <div class="text-center py-4 bg-background rounded-lg">
+          <span class="font-label-md text-label-md text-on-surface-variant block mb-2">悬赏积分</span>
+          <div class="flex items-center justify-center gap-2 text-[#F59E0B] text-3xl font-bold">
+            {{ req.bounty }} 积分
+          </div>
+        </div>
+
+        {# ====== open ====== #}
+        {% if req.status == 'open' %}
+          {% if not current_user %}
+            <div class="bg-surface-container p-4 rounded-lg text-center">
+              <p class="font-body-md text-body-md text-on-surface-variant mb-3">登录后即可认领这条请求并上传 PDF 完成交付。</p>
+              <a href="{{ base_path }}/auth/login?next={{ base_path }}/requests/{{ req.id }}" class="w-full bg-primary text-white py-3 rounded-lg font-label-md text-label-md flex justify-center items-center gap-2 transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5">
+                <span class="material-symbols-outlined">login</span> 登录后应助
+              </a>
+            </div>
+          {% elif is_owner %}
+            <div class="bg-[#FEF3C7]/50 border border-[#F59E0B]/20 p-4 rounded-lg">
+              <p class="font-label-md text-label-md text-[#92400E]">当前正在等待其他用户响应。如需取消，请联系管理员关闭，悬赏积分会原路退回。</p>
+            </div>
+          {% else %}
+            <p class="font-label-sm text-label-sm text-on-surface-variant text-center">认领后请尽快上传 PDF（&le; {{ max_mb }}MB）。完成应助后，{{ req.bounty }} 积分会转入你的账户。</p>
+            <form method="post" action="{{ base_path }}/requests/{{ req.id }}/claim">
+              <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+              <button type="submit" class="w-full bg-primary text-white hover:bg-primary-container py-4 rounded-lg font-headline-md text-headline-md flex justify-center items-center gap-2 transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5">
+                <span class="material-symbols-outlined">upload</span> 立即帮助 (上传文件)
+              </button>
+            </form>
+          {% endif %}
+
+        {# ====== claimed ====== #}
+        {% elif req.status == 'claimed' %}
+          {% if is_helper %}
+            <div class="space-y-4">
+              <p class="font-label-sm text-label-sm text-on-surface-variant text-center">
+                最大 {{ max_mb }}MB。
+                {% if desensitize_on %}系统会自动脱敏。{% else %}当前为原件模式。{% endif %}
+              </p>
+              <form method="post" action="{{ base_path }}/requests/{{ req.id }}/upload" enctype="multipart/form-data">
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <label class="w-full flex flex-col items-center px-4 py-6 bg-surface-container rounded-lg border-2 border-dashed border-outline-variant cursor-pointer hover:bg-surface-container-low transition-colors">
+                  <span class="material-symbols-outlined text-3xl text-on-surface-variant mb-2">cloud_upload</span>
+                  <span class="font-label-md text-label-md text-primary">选择 PDF 文件</span>
+                  <input type="file" name="pdf" accept="application/pdf,.pdf" required class="hidden">
+                </label>
+                <button type="submit" class="w-full bg-primary text-white py-3 rounded-lg font-label-md text-label-md mt-4 hover:bg-primary-container transition-all">
+                  上传 PDF
+                </button>
+              </form>
+              <form method="post" action="{{ base_path }}/requests/{{ req.id }}/release" onsubmit="return confirm('放弃应助后任务将回到待应助大厅，其他人可重新认领。确定吗？');">
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <button type="submit" class="w-full py-2 rounded-lg border border-outline-variant text-on-surface-variant font-label-md text-label-md hover:bg-surface-variant transition-colors">放弃应助并释放任务</button>
+              </form>
+            </div>
+          {% elif is_owner %}
+            <div class="bg-surface-container p-4 rounded-lg text-center">
+              <p class="font-body-md text-body-md text-on-surface-variant">{{ helper_nickname }} 已认领，正在准备 PDF。</p>
+            </div>
+          {% else %}
+            <div class="bg-surface-container p-4 rounded-lg text-center">
+              <p class="font-body-md text-body-md text-on-surface-variant">这条请求已被 {{ helper_nickname }} 认领。</p>
+            </div>
+          {% endif %}
+
+        {# ====== awaiting_confirm ====== #}
+        {% elif req.status == 'awaiting_confirm' %}
+          {% if is_owner %}
+            <div class="space-y-4">
+              <p class="font-label-sm text-label-sm text-on-surface-variant text-center">
+                {{ helper_nickname }} 已上传 PDF。确认后 <strong>{{ req.bounty }}</strong> 积分将转给应助者。{{ remaining }} 后自动确认。
+              </p>
+              <div class="flex gap-3">
+                <a href="{{ base_path }}/requests/{{ req.id }}/download" target="_blank" class="flex-1 bg-surface-container-lowest text-primary py-3 rounded-lg font-label-md text-label-md flex justify-center items-center gap-2 border border-outline-variant hover:bg-surface-container-low transition-colors">
+                  <span class="material-symbols-outlined">preview</span> 预览
+                </a>
+                <form method="post" action="{{ base_path }}/requests/{{ req.id }}/confirm" class="flex-1">
+                  <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                  <button type="submit" class="w-full bg-primary text-white py-3 rounded-lg font-label-md text-label-md hover:bg-primary-container transition-all">确认接收</button>
+                </form>
+              </div>
+              <details>
+                <summary class="font-label-sm text-label-sm text-on-surface-variant cursor-pointer hover:text-primary transition-colors">驳回（要求重新上传）</summary>
+                <form method="post" action="{{ base_path }}/requests/{{ req.id }}/reject" class="mt-3">
+                  <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                  <label class="block mb-3">
+                    <textarea name="reason" rows="3" maxlength="500" placeholder="例: 文件损坏 / 不是同一篇 / 缺页..." class="w-full bg-surface rounded-lg border border-outline-variant p-3 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none"></textarea>
+                  </label>
+                  <button type="submit" class="w-full py-2 rounded-lg bg-error text-white font-label-md text-label-md hover:opacity-90 transition-colors">驳回，任务回到大厅</button>
+                </form>
+              </details>
+            </div>
+          {% elif is_helper %}
+            <div class="bg-[#D1FAE5]/50 border border-[#065F46]/20 p-4 rounded-lg text-center">
+              <p class="font-label-md text-label-md text-[#065F46]">已上传 PDF，等待求助者确认。</p>
+              <p class="font-label-sm text-label-sm text-[#065F46]/70 mt-1">{{ remaining }} 后自动确认。</p>
+              <a href="{{ base_path }}/requests/{{ req.id }}/download" target="_blank" class="inline-flex items-center gap-1 text-primary font-label-md text-label-md mt-2 hover:underline">
+                <span class="material-symbols-outlined text-sm">visibility</span> 查看我上传的 PDF
+              </a>
+            </div>
+          {% else %}
+            <div class="bg-surface-container p-4 rounded-lg text-center">
+              <p class="font-body-md text-body-md text-on-surface-variant">已上传 PDF，等待求助者确认。</p>
+            </div>
+          {% endif %}
+
+        {# ====== completed ====== #}
+        {% elif req.status == 'completed' %}
+          <div class="bg-[#D1FAE5]/50 border border-[#065F46]/20 p-4 rounded-lg text-center">
+            <p class="font-label-md text-label-md text-[#065F46] mb-3">已完结。文献已沉淀到共享文献库，欢迎下载。</p>
+            {% if current_user %}
+              <a href="{{ base_path }}/requests/{{ req.id }}/download" class="w-full bg-primary text-white py-3 rounded-lg font-label-md text-label-md flex justify-center items-center gap-2 hover:bg-primary-container transition-all">
+                <span class="material-symbols-outlined">download</span> 下载 PDF{% if desensitize_on %}（脱敏版）{% else %}（原件）{% endif %}
+              </a>
+            {% else %}
+              <a href="{{ base_path }}/auth/login?next={{ base_path }}/requests/{{ req.id }}" class="w-full bg-surface-container-lowest text-primary py-3 rounded-lg font-label-md text-label-md flex justify-center items-center gap-2 border border-outline-variant hover:bg-surface-container-low transition-colors">
+                登录后下载
+              </a>
+            {% endif %}
+          </div>
+
+        {# ====== expired ====== #}
+        {% elif req.status == 'expired' %}
+          <div class="bg-[#FEF3C7]/50 border border-[#F59E0B]/20 p-4 rounded-lg text-center">
+            <p class="font-label-md text-label-md text-[#92400E]">求助已过期。{% if is_owner %}悬赏积分已全额退回到你的账户。{% endif %}</p>
+          </div>
+
+        {# ====== closed ====== #}
+        {% elif req.status == 'closed' %}
+          <div class="bg-surface-container p-4 rounded-lg text-center">
+            <p class="font-body-md text-body-md text-on-surface-variant">已关闭。{% if is_owner %}悬赏积分已退回。{% endif %}</p>
+          </div>
+        {% endif %}
+
+        <!-- Safety Reminder -->
+        <hr class="border-surface-container-high">
+        <div class="bg-surface-container flex items-start gap-3 p-4 rounded-lg">
+          <span class="material-symbols-outlined text-on-surface-variant">shield</span>
+          <div>
+            <span class="block font-label-md text-label-md text-on-surface mb-1">安全与版权提示</span>
+            <span class="font-label-sm text-label-sm text-on-surface-variant">文件仅供个人学习、教学或科研使用，严禁用于任何商业用途。请尊重知识产权。</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Report Section -->
+      {% if can_report and req.status not in ('closed', 'expired') %}
+        <div class="bg-surface-container-lowest rounded-xl p-4 border border-surface-container-highest">
+          {% if already_reported %}
+            <div class="text-center">
+              <p class="font-label-sm text-label-sm text-on-surface-variant">你已对此求助提交过举报，等待管理员处理。</p>
+            </div>
+          {% else %}
+            <details>
+              <summary class="font-label-sm text-label-sm text-on-surface-variant cursor-pointer hover:text-primary transition-colors flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm">flag</span> 举报这条求助（疑似违规）
+              </summary>
+              <form method="post" action="{{ base_path }}/requests/{{ req.id }}/report" class="mt-3">
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <label class="block mb-3">
+                  <textarea name="reason" rows="2" maxlength="255" required placeholder="例: 不在合理使用范围 / 涉嫌侵权 / 误发..." class="w-full bg-surface rounded-lg border border-outline-variant p-3 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none"></textarea>
+                </label>
+                <button type="submit" class="w-full py-2 rounded-lg bg-error text-white font-label-md text-label-sm hover:opacity-90 transition-colors">提交举报</button>
+              </form>
+            </details>
+          {% endif %}
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <!-- Navigation links -->
+  <div class="text-center pt-4">
+    {% if current_user and (is_owner or is_helper) %}
+      <a href="{{ base_path }}/me" class="font-label-md text-label-md text-primary hover:text-primary-container transition-colors">返回个人中心</a>
+      <span class="text-on-surface-variant mx-2">&middot;</span>
     {% endif %}
-  </section>
+    <a href="{{ base_path }}/requests" class="font-label-md text-label-md text-primary hover:text-primary-container transition-colors">返回大厅</a>
+  </div>
 
-{# ---- expired ---- #}
-{% elif req.status == 'expired' %}
-  <section class="card muted small">
-    <p>求助已过期。{% if is_owner %}悬赏积分已全额退回到你的账户。{% endif %}</p>
-  </section>
-
-{# ---- closed ---- #}
-{% elif req.status == 'closed' %}
-  <section class="card muted small">
-    <p>已关闭。{% if is_owner %}悬赏积分已退回。{% endif %}</p>
-  </section>
-{% endif %}
-
-{# ====== 举报区 ====== #}
-{% if can_report and req.status not in ('closed', 'expired') %}
-  <section class="card muted small" style="margin-top:8px;">
-    {% if already_reported %}
-      <p>你已对此求助提交过举报，等待管理员处理。</p>
-    {% else %}
-      <details>
-        <summary style="cursor:pointer;">⚠️ 举报这条求助（疑似违规）</summary>
-        <form method="post" action="{{ base_path }}/requests/{{ req.id }}/report" style="margin-top:10px;">
-          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-          <label>原因（必填，≤ 255 字）
-            <textarea name="reason" rows="2" maxlength="255" required placeholder="例: 不在合理使用范围 / 涉嫌侵权 / 误发..."></textarea>
-          </label>
-          <button type="submit" class="btn block" style="background:#dc2626;color:#fff;">提交举报</button>
-        </form>
-      </details>
-    {% endif %}
-  </section>
-{% endif %}
-
-<p class="muted small" style="text-align:center;margin-top:18px;">
-  {% if current_user and (is_owner or is_helper) %}
-    <a href="{{ base_path }}/me">← 返回个人中心</a>
-    <span> · </span>
-    <a href="{{ base_path }}/requests">查看大厅</a>
-  {% else %}
-    <a href="{{ base_path }}/requests">← 返回大厅</a>
-  {% endif %}
-</p>
+</div>
 {% endblock %}

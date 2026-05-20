@@ -1,69 +1,173 @@
 {% extends "base.html" %}
+{% block title %}{{ site_title }}{% endblock %}
 {% block content %}
-<section class="hero">
-  <h1>{{ site_title }}</h1>
-  <p class="slogan">{{ site_slogan }}</p>
-  <div class="cta">
-    {% if current_user %}
-      <a href="{{ base_path }}/requests/new" class="btn primary">📝 发布求助</a>
-      <a href="{{ base_path }}/requests" class="btn secondary">📥 待应助大厅</a>
-    {% else %}
-      <a href="{{ base_path }}/auth/register" class="btn primary">📝 注册参与</a>
-      <a href="{{ base_path }}/requests" class="btn secondary">📥 浏览大厅</a>
-    {% endif %}
-  </div>
-  {% if not current_user %}
-    <p class="muted small" style="margin-top:14px;">
-      已注册？<a href="{{ base_path }}/auth/login">登录</a>
-    </p>
-  {% endif %}
-</section>
+<div class="space-y-12">
 
-<section class="card">
-  <h2>实时动态</h2>
-  {% if activities %}
-    <ul class="activity-list">
-      {% for a in activities %}
-        <li>
-          <span class="actor">{{ a.actor }}</span>
-          <span class="muted">{{ a.verb }}</span>
-          {% if a.object %}<span class="obj">《{{ a.object }}》</span>{% endif %}
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p class="muted small">还没有动态。{% if not current_user %}<a href="{{ base_path }}/auth/register">注册</a>后{% endif %}发布一个求助试试。</p>
-  {% endif %}
-</section>
+  <!-- Hero Section -->
+  <section class="relative rounded-xl overflow-hidden flex items-center justify-center text-center px-6 glass-card shadow-[0_4px_30px_rgba(0,74,198,0.05)] min-h-[300px] py-12" style="background: rgba(255, 255, 255, 0.9);">
+    <div class="absolute inset-0 z-0">
+      <div class="absolute inset-0" style="background: linear-gradient(135deg, rgba(29, 64, 174, 0.08), rgba(10, 145, 177, 0.06));"></div>
+    </div>
+    <div class="relative z-10 max-w-5xl mx-auto w-full space-y-8">
+      <h1 class="font-headline-lg text-headline-lg text-primary tracking-tight animate-fade-in-up delay-100">{{ site_slogan }}</h1>
+      <p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto animate-fade-in-up delay-200">
+        把零散的人情帮助，整理成清晰、可信、能持续运转的学术互助流。签到积攒积分，发布请求，回应他人，沉淀共享。
+      </p>
 
-<section class="card">
-  <div class="page-head" style="margin-top:0;">
-    <h2>共享文献库</h2>
-    <p class="muted small">已沉淀 {{ library_count }} 篇</p>
-    <a href="{{ base_path }}/library" class="btn secondary">进入共享库</a>
-  </div>
-  {% if recent_library %}
-    <ul class="my-list">
-      {% for paper in recent_library %}
-        <li>
-          <div style="flex:1;">
-            <strong>{{ paper.title }}</strong>
-            <p class="muted small">
-              {{ paper.authors }}
-              {% if paper.journal %} · {{ paper.journal }}{% endif %}
-              · {{ paper.year }}
-            </p>
+      <!-- How it Works -->
+      <div class="my-8 animate-fade-in-up delay-200">
+        <div class="flex flex-wrap justify-center items-center gap-4 md:gap-8">
+          <div class="flex flex-col items-center text-center space-y-2 hover:-translate-y-1 transition-transform duration-300">
+            <div class="rounded-full shadow-sm flex items-center justify-center w-12 h-12" style="background-color: #1d40ae; color: white;">
+              <span class="material-symbols-outlined text-2xl">event_available</span>
+            </div>
+            <h4 class="text-sm font-normal text-on-surface-variant">每日签到攒积分</h4>
           </div>
-          <span class="muted small">下载 {{ paper.download_count }}</span>
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p class="muted small">还没有沉淀文献。第一批完结的求助会自动出现在这里。</p>
-  {% endif %}
-</section>
+          <div class="flex items-center text-outline/50 mb-6">
+            <span class="material-symbols-outlined text-2xl">arrow_forward</span>
+          </div>
+          <div class="flex flex-col items-center text-center space-y-2 hover:-translate-y-1 transition-transform duration-300">
+            <div class="rounded-full shadow-sm flex items-center justify-center w-12 h-12" style="background-color: #0a91b1; color: white;">
+              <span class="material-symbols-outlined text-2xl">toll</span>
+            </div>
+            <h4 class="text-sm font-normal text-on-surface-variant">求助他人消耗积分</h4>
+          </div>
+          <div class="flex items-center text-outline/50 mb-6">
+            <span class="material-symbols-outlined text-2xl">arrow_forward</span>
+          </div>
+          <div class="flex flex-col items-center text-center space-y-2 hover:-translate-y-1 transition-transform duration-300">
+            <div class="rounded-full shadow-sm flex items-center justify-center w-12 h-12" style="background-color: #1d40ae; color: white;">
+              <span class="material-symbols-outlined text-2xl">volunteer_activism</span>
+            </div>
+            <h4 class="text-sm font-normal text-on-surface-variant">应助他人获积分</h4>
+          </div>
+          <div class="flex items-center text-outline/50 mb-6">
+            <span class="material-symbols-outlined text-2xl">arrow_forward</span>
+          </div>
+          <div class="flex flex-col items-center text-center space-y-2 hover:-translate-y-1 transition-transform duration-300">
+            <div class="rounded-full shadow-sm flex items-center justify-center w-12 h-12" style="background-color: #0a91b1; color: white;">
+              <span class="material-symbols-outlined text-2xl">cloud_download</span>
+            </div>
+            <h4 class="text-sm font-normal text-on-surface-variant">共享库供免费下载</h4>
+          </div>
+        </div>
+      </div>
 
-<section class="card small muted">
-  <p><strong>玩法</strong>：每日签到攒积分 → 发布求助消耗悬赏积分 → 应助他人获得积分 → 完结的文献沉淀进共享库供大家免费下载。</p>
-</section>
+      <!-- CTA Buttons -->
+      <div class="flex flex-wrap justify-center gap-4 mt-4 animate-fade-in-up delay-400">
+        {% if current_user %}
+          <a href="{{ base_path }}/requests/new" class="bg-secondary text-on-secondary font-label-md text-label-md px-8 py-3 rounded-full hover:bg-secondary-container hover:text-on-secondary-container hover:scale-105 active:scale-95 transition-all duration-300 shadow-sm flex items-center gap-2">
+            <span class="material-symbols-outlined text-xl">add_circle</span> 发布求助
+          </a>
+          <a href="{{ base_path }}/requests" class="bg-surface-container-lowest text-primary font-label-md text-label-md px-8 py-3 rounded-full border border-outline-variant hover:bg-surface-container-low hover:scale-105 active:scale-95 transition-all duration-300 shadow-sm flex items-center gap-2">
+            <span class="material-symbols-outlined text-xl">explore</span> 求助大厅
+          </a>
+        {% else %}
+          <a href="{{ base_path }}/auth/register" class="bg-secondary text-on-secondary font-label-md text-label-md px-8 py-3 rounded-full hover:bg-secondary-container hover:text-on-secondary-container hover:scale-105 active:scale-95 transition-all duration-300 shadow-sm flex items-center gap-2">
+            <span class="material-symbols-outlined text-xl">person_add</span> 注册参与
+          </a>
+          <a href="{{ base_path }}/requests" class="bg-surface-container-lowest text-primary font-label-md text-label-md px-8 py-3 rounded-full border border-outline-variant hover:bg-surface-container-low hover:scale-105 active:scale-95 transition-all duration-300 shadow-sm flex items-center gap-2">
+            <span class="material-symbols-outlined text-xl">explore</span> 先逛大厅
+          </a>
+        {% endif %}
+      </div>
+      {% if not current_user %}
+        <p class="font-body-md text-on-surface-variant mt-4 animate-fade-in-up delay-500">已有账号可直接<a href="{{ base_path }}/auth/login" class="text-primary font-bold hover:underline">登录</a>继续。</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-surface-container-highest">
+      <strong class="text-3xl font-bold text-on-surface block">{{ library_count }}</strong>
+      <span class="font-label-md text-label-md text-on-surface-variant">共享库已沉淀文献</span>
+    </div>
+    <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-surface-container-highest">
+      <strong class="text-3xl font-bold text-on-surface block">{{ activities|length }}</strong>
+      <span class="font-label-md text-label-md text-on-surface-variant">首页实时动态</span>
+    </div>
+    <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-surface-container-highest">
+      <strong class="text-3xl font-bold text-on-surface block">{% if current_user %}已登录{% else %}欢迎加入{% endif %}</strong>
+      <span class="font-label-md text-label-md text-on-surface-variant">{% if current_user %}继续发布或响应新的文献请求{% else %}注册后即可参与互助与下载{% endif %}</span>
+    </div>
+  </section>
+
+  <!-- Real-time Dynamics -->
+  <section class="space-y-6">
+    <div class="flex items-center justify-between">
+      <h2 class="font-headline-md text-headline-md text-on-surface flex items-center gap-2 font-bold">
+        <span class="material-symbols-outlined text-primary icon-fill">graphic_eq</span>
+        实时动态
+      </h2>
+    </div>
+    {% if activities %}
+      <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-surface-container-highest">
+        <div class="flex flex-col gap-4">
+          {% for a in activities %}
+            <div class="flex items-center gap-4 py-3 {% if not loop.last %}border-b border-surface-container-high{% endif %}">
+              <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                {{ a.actor[:2] }}
+              </div>
+              <div class="flex-grow">
+                <span class="font-label-md text-label-md text-on-surface-variant">{{ a.verb }}</span>
+                {% if a.object %}<span class="font-label-md text-label-md text-on-surface font-semibold">《{{ a.object }}》</span>{% endif %}
+              </div>
+              <span class="px-3 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">更新</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% else %}
+      <div class="bg-surface-container-lowest rounded-xl p-8 shadow-sm border border-surface-container-highest text-center">
+        <p class="font-body-md text-body-md text-on-surface-variant">还没有动态。{% if not current_user %}<a href="{{ base_path }}/auth/register" class="text-primary font-semibold hover:underline">注册</a>后{% endif %}发布第一条求助，首页就会热闹起来。</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <!-- Shared Library -->
+  <section class="space-y-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="font-headline-md text-headline-md text-on-surface flex items-center gap-2 font-bold">
+          <span class="material-symbols-outlined text-primary icon-fill">local_library</span>
+          共享文献库
+        </h2>
+        <p class="font-body-md text-body-md text-on-surface-variant mt-1">已沉淀 {{ library_count }} 篇完结文献，可直接检索与下载。</p>
+      </div>
+      <a href="{{ base_path }}/library" class="bg-surface-container-lowest text-primary font-label-md text-label-md px-6 py-2 rounded-full border border-outline-variant hover:bg-surface-container-low transition-colors">进入共享库</a>
+    </div>
+    {% if recent_library %}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {% for paper in recent_library %}
+          <article class="reveal-on-scroll request-card bg-surface-container-lowest rounded-xl border border-surface-container-highest flex flex-col justify-between h-full p-4">
+            <div>
+              <h3 class="font-headline-md text-on-surface line-clamp-2 group-hover:text-primary transition-colors cursor-pointer mb-2 text-lg font-bold">
+                {{ paper.title }}
+              </h3>
+              <div class="font-label-sm text-label-sm text-on-surface-variant space-y-0.5">
+                <p>{{ paper.authors }}{% if paper.journal %} &middot; {{ paper.journal }}{% endif %} &middot; {{ paper.year }}</p>
+              </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-surface-container-high flex justify-between items-center">
+              <span class="px-3 py-1 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm font-bold flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm">download</span> {{ paper.download_count }}
+              </span>
+              {% if current_user %}
+                <a href="{{ base_path }}/library/{{ paper.id }}/download" class="px-4 py-1.5 rounded-lg bg-secondary text-on-secondary font-label-md text-label-md hover:opacity-90 transition-colors">下载</a>
+              {% else %}
+                <a href="{{ base_path }}/auth/login?next={{ base_path }}/library/{{ paper.id }}/download" class="px-4 py-1.5 rounded-lg border border-outline-variant text-on-surface-variant font-label-md text-label-md hover:bg-surface-variant transition-colors">登录后下载</a>
+              {% endif %}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="bg-surface-container-lowest rounded-xl p-8 shadow-sm border border-surface-container-highest text-center">
+        <p class="font-body-md text-body-md text-on-surface-variant">还没有沉淀文献。第一批完结的求助会自动出现在这里。</p>
+      </div>
+    {% endif %}
+  </section>
+
+</div>
 {% endblock %}
