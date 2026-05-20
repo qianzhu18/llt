@@ -4,19 +4,47 @@
 <div class="space-y-12">
 
   <!-- Hero Section -->
-  <section class="relative rounded-xl overflow-hidden flex items-center justify-center text-center px-6 glass-card shadow-[0_4px_30px_rgba(0,74,198,0.05)] min-h-[300px] py-12" style="background: rgba(255, 255, 255, 0.9);">
+  <section class="relative rounded-xl overflow-hidden flex items-center justify-center text-center px-4 md:px-6 glass-card shadow-[0_4px_30px_rgba(0,74,198,0.05)] min-h-[240px] md:min-h-[300px] py-8 md:py-12" style="background: rgba(255, 255, 255, 0.9);">
     <div class="absolute inset-0 z-0">
       <div class="absolute inset-0" style="background: linear-gradient(135deg, rgba(29, 64, 174, 0.08), rgba(10, 145, 177, 0.06));"></div>
     </div>
-    <div class="relative z-10 max-w-5xl mx-auto w-full space-y-8">
-      <h1 class="font-headline-lg text-headline-lg text-primary tracking-tight animate-fade-in-up delay-100">{{ site_slogan }}</h1>
-      <p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto animate-fade-in-up delay-200">
+    <div class="relative z-10 max-w-5xl mx-auto w-full space-y-4 md:space-y-8">
+      <h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary tracking-tight animate-fade-in-up delay-100">{{ site_slogan }}</h1>
+      <p class="font-body-md md:font-body-lg text-body-md md:text-body-lg text-on-surface-variant max-w-2xl mx-auto animate-fade-in-up delay-200">
         把零散的人情帮助，整理成清晰、可信、能持续运转的学术互助流。签到积攒积分，发布请求，回应他人，沉淀共享。
       </p>
 
-      <!-- How it Works -->
-      <div class="my-8 animate-fade-in-up delay-200">
-        <div class="flex flex-wrap justify-center items-center gap-4 md:gap-8">
+      <!-- How it Works: 2x2 grid on mobile, horizontal on desktop -->
+      <div class="my-4 md:my-8 animate-fade-in-up delay-200">
+        <!-- Mobile: vertical step list -->
+        <div class="md:hidden space-y-3">
+          <div class="flex items-center gap-3 bg-white/60 rounded-lg px-3 py-2">
+            <div class="rounded-full shadow-sm flex items-center justify-center w-10 h-10 shrink-0" style="background-color: #1d40ae; color: white;">
+              <span class="material-symbols-outlined text-xl">event_available</span>
+            </div>
+            <span class="text-sm text-on-surface-variant text-left">每日签到攒积分</span>
+          </div>
+          <div class="flex items-center gap-3 bg-white/60 rounded-lg px-3 py-2">
+            <div class="rounded-full shadow-sm flex items-center justify-center w-10 h-10 shrink-0" style="background-color: #0a91b1; color: white;">
+              <span class="material-symbols-outlined text-xl">toll</span>
+            </div>
+            <span class="text-sm text-on-surface-variant text-left">求助他人消耗积分</span>
+          </div>
+          <div class="flex items-center gap-3 bg-white/60 rounded-lg px-3 py-2">
+            <div class="rounded-full shadow-sm flex items-center justify-center w-10 h-10 shrink-0" style="background-color: #1d40ae; color: white;">
+              <span class="material-symbols-outlined text-xl">volunteer_activism</span>
+            </div>
+            <span class="text-sm text-on-surface-variant text-left">应助他人获积分</span>
+          </div>
+          <div class="flex items-center gap-3 bg-white/60 rounded-lg px-3 py-2">
+            <div class="rounded-full shadow-sm flex items-center justify-center w-10 h-10 shrink-0" style="background-color: #0a91b1; color: white;">
+              <span class="material-symbols-outlined text-xl">cloud_download</span>
+            </div>
+            <span class="text-sm text-on-surface-variant text-left">共享库供免费下载</span>
+          </div>
+        </div>
+        <!-- Desktop: horizontal flow -->
+        <div class="hidden md:flex flex-wrap justify-center items-center gap-4 md:gap-8">
           <div class="flex flex-col items-center text-center space-y-2 hover:-translate-y-1 transition-transform duration-300">
             <div class="rounded-full shadow-sm flex items-center justify-center w-12 h-12" style="background-color: #1d40ae; color: white;">
               <span class="material-symbols-outlined text-2xl">event_available</span>
@@ -54,88 +82,111 @@
       </div>
 
       <!-- CTA Buttons -->
-      <div class="flex flex-wrap justify-center gap-4 mt-4 animate-fade-in-up delay-400">
+      <div class="flex flex-wrap justify-center gap-3 mt-2 md:mt-4 animate-fade-in-up delay-400">
         {% if current_user %}
-          <a href="{{ base_path }}/requests/new" class="bg-secondary text-on-secondary font-label-md text-label-md px-8 py-3 rounded-full hover:bg-secondary-container hover:text-on-secondary-container hover:scale-105 active:scale-95 transition-all duration-300 shadow-sm flex items-center gap-2">
+          <a href="{{ base_path }}/requests/new" class="bg-secondary text-on-secondary font-label-md text-label-md px-6 md:px-8 py-3 rounded-full hover:bg-secondary-container hover:text-on-secondary-container active:scale-95 transition-all duration-300 shadow-sm flex items-center gap-2">
             <span class="material-symbols-outlined text-xl">add_circle</span> 发布求助
           </a>
-          <a href="{{ base_path }}/requests" class="bg-surface-container-lowest text-primary font-label-md text-label-md px-8 py-3 rounded-full border border-outline-variant hover:bg-surface-container-low hover:scale-105 active:scale-95 transition-all duration-300 shadow-sm flex items-center gap-2">
+          <a href="{{ base_path }}/requests" class="bg-surface-container-lowest text-primary font-label-md text-label-md px-6 md:px-8 py-3 rounded-full border border-outline-variant hover:bg-surface-container-low active:scale-95 transition-all duration-300 shadow-sm flex items-center gap-2">
             <span class="material-symbols-outlined text-xl">explore</span> 求助大厅
           </a>
         {% else %}
-          <a href="{{ base_path }}/auth/register" class="bg-secondary text-on-secondary font-label-md text-label-md px-8 py-3 rounded-full hover:bg-secondary-container hover:text-on-secondary-container hover:scale-105 active:scale-95 transition-all duration-300 shadow-sm flex items-center gap-2">
+          <a href="{{ base_path }}/auth/register" class="bg-secondary text-on-secondary font-label-md text-label-md px-6 md:px-8 py-3 rounded-full hover:bg-secondary-container hover:text-on-secondary-container active:scale-95 transition-all duration-300 shadow-sm flex items-center gap-2">
             <span class="material-symbols-outlined text-xl">person_add</span> 注册参与
           </a>
-          <a href="{{ base_path }}/requests" class="bg-surface-container-lowest text-primary font-label-md text-label-md px-8 py-3 rounded-full border border-outline-variant hover:bg-surface-container-low hover:scale-105 active:scale-95 transition-all duration-300 shadow-sm flex items-center gap-2">
+          <a href="{{ base_path }}/requests" class="bg-surface-container-lowest text-primary font-label-md text-label-md px-6 md:px-8 py-3 rounded-full border border-outline-variant hover:bg-surface-container-low active:scale-95 transition-all duration-300 shadow-sm flex items-center gap-2">
             <span class="material-symbols-outlined text-xl">explore</span> 先逛大厅
           </a>
         {% endif %}
       </div>
       {% if not current_user %}
-        <p class="font-body-md text-on-surface-variant mt-4 animate-fade-in-up delay-500">已有账号可直接<a href="{{ base_path }}/auth/login" class="text-primary font-bold hover:underline">登录</a>继续。</p>
+        <p class="font-body-md text-on-surface-variant mt-3 md:mt-4 animate-fade-in-up delay-500">已有账号可直接<a href="{{ base_path }}/auth/login" class="text-primary font-bold hover:underline">登录</a>继续。</p>
       {% endif %}
     </div>
   </section>
 
+  <!-- Search Section -->
+  <section class="bg-surface-container-lowest rounded-xl p-4 md:p-8 shadow-sm border border-surface-container-highest">
+    <h2 class="font-headline-md text-headline-md text-on-surface flex items-center gap-2 mb-3">
+      <span class="material-symbols-outlined text-primary icon-fill">search</span>
+      快速查找文献
+    </h2>
+    <p class="font-body-md text-body-md text-on-surface-variant mb-3">输入标题、作者或期刊名称，同时检索共享库和求助大厅。</p>
+    <div class="relative">
+      <input
+        type="text"
+        id="home-search"
+        name="q"
+        placeholder="输入文献标题、作者或期刊..."
+        autocomplete="off"
+        class="w-full min-h-[52px] pl-12 pr-4 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface font-body-md text-body-md focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+        hx-get="{{ base_path }}/search"
+        hx-trigger="keyup changed delay:300ms, search"
+        hx-target="#search-results"
+        hx-indicator="#home-search"
+      >
+      <span class="material-symbols-outlined search-icon absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-xl pointer-events-none">search</span>
+      <span class="material-symbols-outlined search-spinner htmx-indicator absolute left-4 top-1/2 -translate-y-1/2 text-primary text-xl animate-spin pointer-events-none">progress_activity</span>
+    </div>
+    <div id="search-results" class="mt-4"></div>
+  </section>
+
   <!-- Stats -->
-  <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
-    <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-surface-container-highest">
-      <strong class="text-3xl font-bold text-on-surface block">{{ library_count }}</strong>
-      <span class="font-label-md text-label-md text-on-surface-variant">共享库已沉淀文献</span>
+  <section class="grid grid-cols-3 gap-3 md:gap-6">
+    <div class="bg-surface-container-lowest rounded-xl p-4 md:p-6 shadow-sm border border-surface-container-highest">
+      <strong class="text-2xl md:text-3xl font-bold text-on-surface block">{{ library_count }}</strong>
+      <span class="font-label-sm md:font-label-md text-label-sm md:text-label-md text-on-surface-variant">共享库文献</span>
     </div>
-    <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-surface-container-highest">
-      <strong class="text-3xl font-bold text-on-surface block">{{ activities|length }}</strong>
-      <span class="font-label-md text-label-md text-on-surface-variant">首页实时动态</span>
+    <div class="bg-surface-container-lowest rounded-xl p-4 md:p-6 shadow-sm border border-surface-container-highest">
+      <strong class="text-2xl md:text-3xl font-bold text-on-surface block">{{ activities|length }}</strong>
+      <span class="font-label-sm md:font-label-md text-label-sm md:text-label-md text-on-surface-variant">实时动态</span>
     </div>
-    <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-surface-container-highest">
-      <strong class="text-3xl font-bold text-on-surface block">{% if current_user %}已登录{% else %}欢迎加入{% endif %}</strong>
-      <span class="font-label-md text-label-md text-on-surface-variant">{% if current_user %}继续发布或响应新的文献请求{% else %}注册后即可参与互助与下载{% endif %}</span>
+    <div class="bg-surface-container-lowest rounded-xl p-4 md:p-6 shadow-sm border border-surface-container-highest">
+      <strong class="text-2xl md:text-3xl font-bold text-on-surface block">{% if current_user %}已登录{% else %}欢迎加入{% endif %}</strong>
+      <span class="font-label-sm md:font-label-md text-label-sm md:text-label-md text-on-surface-variant">{% if current_user %}继续参与{% else %}注册参与{% endif %}</span>
     </div>
   </section>
 
   <!-- Real-time Dynamics -->
-  <section class="space-y-6">
-    <div class="flex items-center justify-between">
-      <h2 class="font-headline-md text-headline-md text-on-surface flex items-center gap-2 font-bold">
-        <span class="material-symbols-outlined text-primary icon-fill">graphic_eq</span>
-        实时动态
-      </h2>
-    </div>
+  <section class="space-y-4 md:space-y-6">
+    <h2 class="font-headline-md text-headline-md text-on-surface flex items-center gap-2 font-bold">
+      <span class="material-symbols-outlined text-primary icon-fill">graphic_eq</span>
+      实时动态
+    </h2>
     {% if activities %}
-      <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-surface-container-highest">
-        <div class="flex flex-col gap-4">
+      <div class="bg-surface-container-lowest rounded-xl p-4 md:p-6 shadow-sm border border-surface-container-highest">
+        <div class="flex flex-col gap-0">
           {% for a in activities %}
-            <div class="flex items-center gap-4 py-3 {% if not loop.last %}border-b border-surface-container-high{% endif %}">
-              <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+            <div class="flex items-center gap-3 py-3 {% if not loop.last %}border-b border-surface-container-high{% endif %}">
+              <div class="w-9 h-9 md:w-10 md:h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
                 {{ a.actor[:2] }}
               </div>
-              <div class="flex-grow">
-                <span class="font-label-md text-label-md text-on-surface-variant">{{ a.verb }}</span>
-                {% if a.object %}<span class="font-label-md text-label-md text-on-surface font-semibold">《{{ a.object }}》</span>{% endif %}
+              <div class="flex-grow min-w-0">
+                <span class="font-label-sm md:font-label-md text-label-sm md:text-label-md text-on-surface-variant">{{ a.verb }}</span>
+                {% if a.object %}<span class="font-label-sm md:font-label-md text-label-sm md:text-label-md text-on-surface font-semibold">《{{ a.object }}》</span>{% endif %}
               </div>
-              <span class="px-3 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">更新</span>
             </div>
           {% endfor %}
         </div>
       </div>
     {% else %}
-      <div class="bg-surface-container-lowest rounded-xl p-8 shadow-sm border border-surface-container-highest text-center">
+      <div class="bg-surface-container-lowest rounded-xl p-6 md:p-8 shadow-sm border border-surface-container-highest text-center">
         <p class="font-body-md text-body-md text-on-surface-variant">还没有动态。{% if not current_user %}<a href="{{ base_path }}/auth/register" class="text-primary font-semibold hover:underline">注册</a>后{% endif %}发布第一条求助，首页就会热闹起来。</p>
       </div>
     {% endif %}
   </section>
 
   <!-- Shared Library -->
-  <section class="space-y-6">
-    <div class="flex items-center justify-between">
-      <div>
+  <section class="space-y-4 md:space-y-6">
+    <div class="flex items-center justify-between gap-2">
+      <div class="min-w-0">
         <h2 class="font-headline-md text-headline-md text-on-surface flex items-center gap-2 font-bold">
           <span class="material-symbols-outlined text-primary icon-fill">local_library</span>
           共享文献库
         </h2>
-        <p class="font-body-md text-body-md text-on-surface-variant mt-1">已沉淀 {{ library_count }} 篇完结文献，可直接检索与下载。</p>
+        <p class="font-label-sm md:font-body-md text-label-sm md:text-body-md text-on-surface-variant mt-1">已沉淀 {{ library_count }} 篇完结文献。</p>
       </div>
-      <a href="{{ base_path }}/library" class="bg-surface-container-lowest text-primary font-label-md text-label-md px-6 py-2 rounded-full border border-outline-variant hover:bg-surface-container-low transition-colors">进入共享库</a>
+      <a href="{{ base_path }}/library" class="shrink-0 bg-surface-container-lowest text-primary font-label-md text-label-md px-4 md:px-6 py-2 rounded-full border border-outline-variant hover:bg-surface-container-low transition-colors">进入共享库</a>
     </div>
     {% if recent_library %}
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

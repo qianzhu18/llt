@@ -4,22 +4,22 @@
 <div class="space-y-8">
 
   <!-- Page Header -->
-  <div class="mb-8">
-    <h1 class="font-display-lg text-display-lg text-on-surface mb-2" style="font-size:40px;line-height:48px;">个人中心</h1>
-    <p class="font-body-lg text-body-lg text-on-surface-variant">管理您的学术贡献，查看互助记录，提升荣誉等级。</p>
+  <div class="mb-4 md:mb-8">
+    <h1 class="font-headline-lg-mobile md:font-display-lg text-headline-lg-mobile md:text-display-lg text-on-surface mb-1 md:mb-2" style="font-size:28px;line-height:36px;">个人中心</h1>
+    <p class="font-body-md md:font-body-lg text-body-md md:text-body-lg text-on-surface-variant">管理学术贡献，查看互助记录。</p>
   </div>
 
   <!-- Top Row: Profile Info & Points -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
     <!-- User Profile Info -->
-    <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-surface-container-highest flex flex-col justify-between">
-      <div class="flex items-center gap-6 mb-6">
-        <div class="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center text-3xl font-bold">
+    <div class="bg-surface-container-lowest rounded-xl p-4 md:p-6 shadow-sm border border-surface-container-highest flex flex-col justify-between">
+      <div class="flex items-center gap-4 md:gap-6 mb-4 md:mb-6">
+        <div class="w-12 h-12 md:w-16 md:h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl md:text-3xl font-bold shrink-0">
           {{ (current_user.nickname or current_user.email)[:1] | upper }}
         </div>
-        <div>
-          <h2 class="font-headline-md text-headline-md text-on-surface">{{ current_user.nickname or '未设置昵称' }}</h2>
-          <p class="font-body-md text-body-md text-on-surface-variant mt-1">{{ current_user.email }}{% if current_user.email_verified %} &middot; 已验证{% endif %}</p>
+        <div class="min-w-0">
+          <h2 class="font-headline-md text-headline-md text-on-surface truncate">{{ current_user.nickname or '未设置昵称' }}</h2>
+          <p class="font-label-sm md:font-body-md text-label-sm md:text-body-md text-on-surface-variant mt-0.5 truncate">{{ current_user.email }}{% if current_user.email_verified %} &middot; 已验证{% endif %}</p>
         </div>
       </div>
       <div class="pt-4 border-t border-surface-container-high">
@@ -35,7 +35,7 @@
     </div>
 
     <!-- Current Balance Card -->
-    <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-surface-container-highest relative overflow-hidden group">
+    <div class="bg-surface-container-lowest rounded-xl p-4 md:p-6 shadow-sm border border-surface-container-highest relative overflow-hidden group">
       <div class="absolute -right-12 -top-12 w-48 h-48 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/10 transition-colors"></div>
       <div class="flex justify-between items-start h-full flex-col relative z-10">
         <div class="w-full flex justify-between items-start">
@@ -45,7 +45,7 @@
               当前积分
             </h2>
             <div class="mt-2 flex items-baseline gap-2">
-              <span class="text-5xl font-bold text-on-surface tracking-tight">{{ current_user.points }}</span>
+              <span class="text-3xl md:text-5xl font-bold text-on-surface tracking-tight">{{ current_user.points }}</span>
               <span class="font-label-md text-label-md text-outline">分</span>
             </div>
           </div>
@@ -62,18 +62,18 @@
   </div>
 
   <!-- Stats Row -->
-  <div class="grid grid-cols-3 gap-6">
-    <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-surface-container-highest text-center">
-      <strong class="text-3xl font-bold text-on-surface block">{{ my_requests|length }}</strong>
-      <span class="font-label-md text-label-md text-on-surface-variant">我发布的求助</span>
+  <div class="grid grid-cols-3 gap-3 md:gap-6">
+    <div class="bg-surface-container-lowest rounded-xl p-3 md:p-6 shadow-sm border border-surface-container-highest text-center">
+      <strong class="text-xl md:text-3xl font-bold text-on-surface block">{{ my_requests|length }}</strong>
+      <span class="font-label-sm md:font-label-md text-label-sm md:text-label-md text-on-surface-variant">发布求助</span>
     </div>
-    <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-surface-container-highest text-center">
-      <strong class="text-3xl font-bold text-on-surface block">{{ my_helps|length }}</strong>
-      <span class="font-label-md text-label-md text-on-surface-variant">我参与的应助</span>
+    <div class="bg-surface-container-lowest rounded-xl p-3 md:p-6 shadow-sm border border-surface-container-highest text-center">
+      <strong class="text-xl md:text-3xl font-bold text-on-surface block">{{ my_helps|length }}</strong>
+      <span class="font-label-sm md:font-label-md text-label-sm md:text-label-md text-on-surface-variant">参与应助</span>
     </div>
-    <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-surface-container-highest text-center">
-      <strong class="text-3xl font-bold text-on-surface block">{{ recent_tx|length }}</strong>
-      <span class="font-label-md text-label-md text-on-surface-variant">最近积分流水</span>
+    <div class="bg-surface-container-lowest rounded-xl p-3 md:p-6 shadow-sm border border-surface-container-highest text-center">
+      <strong class="text-xl md:text-3xl font-bold text-on-surface block">{{ recent_tx|length }}</strong>
+      <span class="font-label-sm md:font-label-md text-label-sm md:text-label-md text-on-surface-variant">积分流水</span>
     </div>
   </div>
 

@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{% block title %}{{ site_title }}{% endblock %}</title>
+<!-- Performance: preconnect & DNS prefetch for external resources -->
+<link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="dns-prefetch" href="https://unpkg.com">
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Four:wght@400;500;700&family=Hanken+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
@@ -133,27 +138,33 @@ tailwind.config = {
   }
 </style>
 <script src="https://unpkg.com/htmx.org@2.0.3" defer></script>
+<style>
+  /* HTMX search indicator */
+  .htmx-indicator.search-spinner { display: none; }
+  .htmx-request .search-spinner { display: inline-flex; }
+  .htmx-request .search-icon { display: none; }
+</style>
 </head>
 <body class="text-on-background min-h-screen flex flex-col" style="background-color: #F9FAFB;">
 
 <!-- TopNavBar -->
-<header class="shadow-sm fixed top-0 w-full z-50 h-16 bg-white">
-  <div class="flex justify-between items-center px-margin-mobile md:px-margin-desktop h-full max-w-container-max mx-auto">
+<header class="shadow-sm fixed top-0 w-full z-50 h-14 md:h-16 bg-white">
+  <div class="flex justify-between items-center px-4 md:px-margin-desktop h-full max-w-container-max mx-auto">
     <div class="flex items-center">
-      <a class="text-headline-lg-mobile md:text-headline-lg text-primary text-xl font-semibold" href="{{ base_path }}/">
+      <a class="text-lg md:text-headline-lg text-primary font-semibold" href="{{ base_path }}/">
         {{ site_title }}
       </a>
     </div>
     <div class="flex items-center gap-6">
       <a class="hidden md:flex font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors
         {% if request.url.path == base_path ~ '/' or request.url.path == '/' %}text-primary font-bold border-b-2 border-primary{% endif %}"
-        href="{{ base_path }}/">首页</a>
+        href="{{ base_path }}/" prefetch>首页</a>
       <a class="hidden md:flex font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors
         {% if '/requests' in request.url.path %}text-primary font-bold border-b-2 border-primary{% endif %}"
-        href="{{ base_path }}/requests">求助大厅</a>
+        href="{{ base_path }}/requests" prefetch>求助大厅</a>
       <a class="hidden md:flex font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors
         {% if '/library' in request.url.path %}text-primary font-bold border-b-2 border-primary{% endif %}"
-        href="{{ base_path }}/library">共享库</a>
+        href="{{ base_path }}/library" prefetch>共享库</a>
       {% if current_user %}
         {% if current_user.is_admin %}
           <a class="hidden md:flex font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors
@@ -163,7 +174,7 @@ tailwind.config = {
         <a class="hidden md:flex font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors
           {% if '/me' in request.url.path %}text-primary font-bold border-b-2 border-primary{% endif %}"
           href="{{ base_path }}/me">{{ current_user.nickname or current_user.email }}</a>
-        <form method="post" action="{{ base_path }}/auth/logout" class="inline">
+        <form method="post" action="{{ base_path }}/auth/logout" class="hidden md:inline">
           <input type="hidden" name="_csrf" value="{{ csrf_token }}">
           <button type="submit" class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors cursor-pointer">退出</button>
         </form>
@@ -171,7 +182,7 @@ tailwind.config = {
         <a class="hidden md:flex font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors
           {% if '/auth/login' in request.url.path %}text-primary font-bold border-b-2 border-primary{% endif %}"
           href="{{ base_path }}/auth/login">登录</a>
-        <a class="bg-primary text-on-primary font-label-md text-label-md px-6 py-2 rounded-full hover:bg-primary-container transition-all active:scale-95
+        <a class="bg-primary text-on-primary font-label-md text-label-md px-5 py-2 rounded-full hover:bg-primary-container transition-all active:scale-95
           {% if '/auth/register' in request.url.path %}ring-2 ring-primary{% endif %}"
           href="{{ base_path }}/auth/register">注册</a>
       {% endif %}
@@ -179,18 +190,57 @@ tailwind.config = {
   </div>
 </header>
 
-<main class="flex-grow pt-20 pb-16 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto w-full">
+<main class="flex-grow pt-[60px] md:pt-20 pb-20 md:pb-16 px-4 md:px-margin-desktop max-w-container-max mx-auto w-full">
   {% block content %}{% endblock %}
 </main>
 
-<!-- Footer -->
-<footer class="w-full mt-auto py-12 px-margin-mobile md:px-margin-desktop flex flex-col items-center justify-center max-w-container-max mx-auto text-center">
-  <div class="space-y-4 max-w-2xl">
+<!-- Footer (hidden on mobile, shown on md+) -->
+<footer class="hidden md:block w-full mt-auto py-12 px-margin-mobile md:px-margin-desktop flex-col items-center justify-center max-w-container-max mx-auto text-center">
+  <div class="space-y-4 max-w-2xl mx-auto">
     <div class="font-headline-md text-headline-md font-bold text-on-surface opacity-80">{{ site_title }}</div>
     <p class="font-label-md text-label-md text-primary opacity-60">&copy; ScholarAid 互助社区 &middot; 致力于开放知识共享</p>
     <p class="font-label-md text-label-md text-on-surface-variant opacity-60">互助文件仅供个人学习研究，禁止盈利或传播</p>
   </div>
 </footer>
+
+<!-- Mobile Bottom Navigation -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-surface-container-highest shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
+  <div class="flex items-center justify-around h-14 max-w-container-max mx-auto">
+    <a href="{{ base_path }}/"
+      class="flex flex-col items-center justify-center gap-0.5 px-3 py-1 min-w-[48px] min-h-[40px] transition-colors
+      {% if request.url.path == base_path ~ '/' or request.url.path == '/' %}text-primary{% else %}text-on-surface-variant{% endif %}">
+      <span class="material-symbols-outlined text-[22px] {% if request.url.path == base_path ~ '/' or request.url.path == '/' %}icon-fill{% endif %}">home</span>
+      <span class="text-[10px] font-medium leading-none">首页</span>
+    </a>
+    <a href="{{ base_path }}/requests"
+      class="flex flex-col items-center justify-center gap-0.5 px-3 py-1 min-w-[48px] min-h-[40px] transition-colors
+      {% if '/requests' in request.url.path %}text-primary{% else %}text-on-surface-variant{% endif %}">
+      <span class="material-symbols-outlined text-[22px] {% if '/requests' in request.url.path %}icon-fill{% endif %}">record_voice_over</span>
+      <span class="text-[10px] font-medium leading-none">求助</span>
+    </a>
+    <a href="{{ base_path }}/library"
+      class="flex flex-col items-center justify-center gap-0.5 px-3 py-1 min-w-[48px] min-h-[40px] transition-colors
+      {% if '/library' in request.url.path %}text-primary{% else %}text-on-surface-variant{% endif %}">
+      <span class="material-symbols-outlined text-[22px] {% if '/library' in request.url.path %}icon-fill{% endif %}">local_library</span>
+      <span class="text-[10px] font-medium leading-none">共享库</span>
+    </a>
+    {% if current_user %}
+      <a href="{{ base_path }}/me"
+        class="flex flex-col items-center justify-center gap-0.5 px-3 py-1 min-w-[48px] min-h-[40px] transition-colors
+        {% if '/me' in request.url.path %}text-primary{% else %}text-on-surface-variant{% endif %}">
+        <span class="material-symbols-outlined text-[22px] {% if '/me' in request.url.path %}icon-fill{% endif %}">person</span>
+        <span class="text-[10px] font-medium leading-none">我的</span>
+      </a>
+    {% else %}
+      <a href="{{ base_path }}/auth/login"
+        class="flex flex-col items-center justify-center gap-0.5 px-3 py-1 min-w-[48px] min-h-[40px] transition-colors
+        {% if '/auth' in request.url.path %}text-primary{% else %}text-on-surface-variant{% endif %}">
+        <span class="material-symbols-outlined text-[22px] {% if '/auth' in request.url.path %}icon-fill{% endif %}">login</span>
+        <span class="text-[10px] font-medium leading-none">登录</span>
+      </a>
+    {% endif %}
+  </div>
+</nav>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {

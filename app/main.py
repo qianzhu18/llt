@@ -5,11 +5,11 @@ from pathlib import Path
 from typing import Optional
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, or_, select
 from sqlalchemy.orm import Session
 
 from .db import Base, SessionLocal, engine, get_db
@@ -201,4 +201,53 @@ def index(
         activities=_recent_activities(db),
         recent_library=_recent_library(db),
         library_count=db.scalar(select(func.count(LibraryPaper.id))) or 0,
+    )
+
+
+@app.get("/search", response_class=HTMLResponse)
+def search(
+    request: Request,
+    q: str = Query("", min_length=1, max_length=200),
+    db: Session = Depends(get_db),
+    viewer: Optional[User] = Depends(current_user),
+):
+    """HTMX partial: search both shared library and open requests."""
+    like = f"%{q.lower()}%"
+    limit = 5
+
+    # Search shared library (completed papers)
+    lib_cond = or_(
+        func.lower(LibraryPaper.title).like(like),
+        func.lower(LibraryPaper.authors).like(like),
+        func.lower(LibraryPaper.journal).like(like),
+    )
+    library_results = db.scalars(
+        select(LibraryPaper).where(lib_cond).order_by(desc(LibraryPaper.created_at)).limit(limit)
+    ).all()
+    library_total = db.scalar(select(func.count(LibraryPaper.id)).where(lib_cond)) or 0
+
+    # Search open requests (people seeking help)
+    req_cond = or_(
+        func.lower(HelpRequest.title).like(like),
+        func.lower(HelpRequest.authors).like(like),
+        func.lower(HelpRequest.journal).like(like),
+    )
+    open_req_results = db.scalars(
+        select(HelpRequest)
+        .where(HelpRequest.status == "open", req_cond)
+        .order_by(desc(HelpRequest.created_at))
+        .limit(limit)
+    ).all()
+    open_req_total = db.scalar(
+        select(func.count(HelpRequest.id)).where(HelpRequest.status == "open", req_cond)
+    ) or 0
+
+    return render(
+        request, "_search_results.html",
+        current_user=viewer,
+        q=q,
+        library_results=library_results,
+        library_total=library_total,
+        open_req_results=open_req_results,
+        open_req_total=open_req_total,
     )

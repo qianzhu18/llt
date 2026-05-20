@@ -4,10 +4,10 @@
 <div class="space-y-8">
 
   <!-- Page Header -->
-  <div class="flex items-center justify-between">
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
     <div>
-      <h1 class="font-headline-lg text-headline-lg text-on-surface">求助大厅</h1>
-      <p class="font-body-md text-body-md text-on-surface-variant mt-1">当前共有 {{ total }} 条公开请求，按标题信息、积分和剩余时效快速浏览。</p>
+      <h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">求助大厅</h1>
+      <p class="font-label-sm md:font-body-md text-label-sm md:text-body-md text-on-surface-variant mt-1">当前共 {{ total }} 条公开请求。</p>
     </div>
     {% if current_user %}
       <a href="{{ base_path }}/requests/new" class="hidden md:flex bg-primary text-on-primary font-label-md text-label-md px-6 py-3 rounded-full hover:bg-primary-container transition-all active:scale-95 shadow-sm items-center gap-2">
@@ -30,40 +30,40 @@
   <!-- Request Grid -->
   <div class="grid grid-cols-1 gap-6">
     {% for it in items %}
-      <a href="{{ base_path }}/requests/{{ it.req.id }}" class="request-card bg-surface-container-lowest rounded-xl border border-surface-container-highest flex flex-col justify-between h-full relative overflow-hidden group py-4 px-6 block">
+      <a href="{{ base_path }}/requests/{{ it.req.id }}" class="request-card bg-surface-container-lowest rounded-xl border border-surface-container-highest flex flex-col justify-between h-full relative overflow-hidden group p-4 md:py-4 md:px-6 block">
         <div>
-          <div class="flex justify-between items-start mb-2">
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full font-label-md text-label-sm
+          <div class="flex justify-between items-start mb-2 gap-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full font-label-sm text-label-sm
               {% if it.req.status == 'open' %}bg-[#FEF3C7] text-[#92400E]
               {% elif it.req.status in ('claimed', 'awaiting_confirm') %}bg-primary-fixed text-on-primary-fixed
               {% elif it.req.status == 'completed' %}bg-[#D1FAE5] text-[#065F46]
               {% else %}bg-gray-100 text-gray-500{% endif %}">
               {{ {'open':'等待帮助','claimed':'进行中','awaiting_confirm':'待确认','completed':'已完成','closed':'已关闭','expired':'已过期'}.get(it.req.status, it.req.status) }}
             </span>
-            <span class="bg-secondary/10 text-secondary font-label-sm text-label-sm px-3 py-1 rounded-full font-bold flex items-center gap-1">
-              <span class="material-symbols-outlined text-sm">stars</span> {{ it.req.bounty }} 积分
+            <span class="bg-secondary/10 text-secondary font-label-sm text-label-sm px-2 md:px-3 py-1 rounded-full font-bold flex items-center gap-1 shrink-0">
+              <span class="material-symbols-outlined text-sm">stars</span> {{ it.req.bounty }}
             </span>
           </div>
-          <h2 class="font-headline-md text-on-surface mb-1 line-clamp-2 group-hover:text-primary transition-colors cursor-pointer text-xl font-bold">
+          <h2 class="font-headline-md text-on-surface mb-1 line-clamp-2 group-hover:text-primary transition-colors cursor-pointer text-lg md:text-xl font-bold">
             {{ it.req.title }}
           </h2>
           <div class="font-label-sm text-label-sm text-on-surface-variant space-y-0.5 mb-2">
-            <p>作者: {{ it.req.authors }}</p>
-            <p>年份: {{ it.req.year }}{% if it.req.journal %} | {{ it.req.journal }}{% endif %}</p>
+            <p class="truncate">{{ it.req.authors }}</p>
+            <p>{{ it.req.year }}{% if it.req.journal %} | {{ it.req.journal }}{% endif %}</p>
           </div>
         </div>
         <div class="mt-2 pt-2 border-t border-surface-container-high flex justify-between items-center">
-          <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center text-on-surface font-label-md">
+          <div class="flex items-center gap-2 min-w-0">
+            <div class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-surface-variant flex items-center justify-center text-on-surface font-label-sm text-label-sm shrink-0">
               {{ it.requester_nickname[:2] | upper }}
             </div>
-            <div class="flex flex-col">
-              <span class="font-label-md text-label-sm text-on-surface leading-tight">{{ it.requester_nickname }}</span>
+            <div class="flex flex-col min-w-0">
+              <span class="font-label-sm text-label-sm text-on-surface leading-tight truncate">{{ it.requester_nickname }}</span>
               <span class="font-label-sm text-label-sm text-outline leading-tight">{{ it.remaining }}</span>
             </div>
           </div>
-          <span class="px-4 py-1.5 rounded-lg bg-secondary text-on-secondary font-label-md text-label-sm hover:opacity-90 transition-colors">
-            {% if it.req.status == 'open' %}提供帮助{% elif it.req.status == 'completed' %}查看详情{% else %}查看进度{% endif %}
+          <span class="px-3 md:px-4 py-1.5 rounded-lg bg-secondary text-on-secondary font-label-md text-label-sm hover:opacity-90 transition-colors shrink-0">
+            {% if it.req.status == 'open' %}帮助{% elif it.req.status == 'completed' %}详情{% else %}进度{% endif %}
           </span>
         </div>
       </a>
@@ -83,7 +83,7 @@
 
 <!-- Mobile FAB -->
 {% if current_user %}
-  <a href="{{ base_path }}/requests/new" class="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:opacity-90 active:scale-95 transition-all z-40">
+  <a href="{{ base_path }}/requests/new" class="md:hidden fixed bottom-[68px] right-4 w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:opacity-90 active:scale-95 transition-all z-40">
     <span class="material-symbols-outlined text-[28px]">add</span>
   </a>
 {% endif %}
