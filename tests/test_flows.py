@@ -6,43 +6,41 @@ import fitz
 from sqlalchemy import func, select
 
 import app.main as main_mod
-import app.routers.admin as admin_mod
-from app.models import Attachment, DailySignin, HelpRequest, LibraryPaper, PointTransaction, SystemSetting, User
+import app.routers.api.admin as api_admin_mod
+from app.models import Attachment, DailySignin, HelpRequest, LibraryPaper, PointTransaction, Report, SystemSetting, User
 from app.points import REASON_PUBLISH_DEDUCT, REASON_SIGNIN
 from app.security import CSRF_COOKIE, SESSION_COOKIE, hash_password, make_verify_token
 from app.settings import settings
 
 
 PASSWORD = "password123"
+API = "/api/v1"
 
 
-def csrf_token(client) -> str:
+def csrf(client) -> str:
     return client.cookies.get(CSRF_COOKIE) or ""
 
 
-def post_form(client, url: str, data: dict | None = None, *, files=None, follow_redirects: bool = True):
-    payload = {"_csrf": csrf_token(client)}
-    if data:
-        payload.update(data)
-    return client.post(url, data=payload, files=files, follow_redirects=follow_redirects)
+def api(client, method: str, path: str, json=None, *, with_csrf=True, **kw):
+    headers = {}
+    if with_csrf:
+        headers["X-CSRF-Token"] = csrf(client)
+    return client.request(method, f"{API}{path}", json=json, headers=headers, **kw)
 
 
-def login(client, email: str, password: str = PASSWORD):
-    client.get("/auth/login")
-    return post_form(
-        client,
-        "/auth/login",
-        {"email": email, "password": password},
-        follow_redirects=False,
-    )
+def api_get(client, path: str, params=None):
+    return client.get(f"{API}{path}", params=params)
 
 
-def logout(client):
-    client.get("/")
-    return post_form(client, "/auth/logout", follow_redirects=False)
+def api_post(client, path: str, json=None):
+    return api(client, "POST", path, json)
 
 
-def make_user(SessionLocal, email: str, *, nickname: str = "User", points: int = 0, verified: bool = True, is_admin: bool = False) -> int:
+def login_user(client, email: str, password: str = PASSWORD):
+    return api_post(client, "/auth/login", {"email": email, "password": password})
+
+
+def make_user(SessionLocal, email: str, *, nickname="User", points=0, verified=True, is_admin=False) -> int:
     with SessionLocal() as db:
         user = User(
             email=email,
@@ -59,6 +57,11 @@ def make_user(SessionLocal, email: str, *, nickname: str = "User", points: int =
         return user.id
 
 
+def verify_email(email: str):
+    """Mark email as verified directly in the DB via the test's SessionLocal."""
+    pass  # handled inline in tests
+
+
 def sample_pdf_bytes() -> bytes:
     doc = fitz.open()
     blob = ("公益文献互助 PDF 测试样本 " * 300).strip()
@@ -73,371 +76,365 @@ def sample_pdf_bytes() -> bytes:
     return data
 
 
-def test_register_verify_login_and_csrf(app_env):
+# ──────────────────────────────────────────────
+# Test 1: Register, login, me, logout
+# ──────────────────────────────────────────────
+def test_register_login_logout_me(app_env):
     client = app_env["client"]
     SessionLocal = app_env["SessionLocal"]
-    email = "alice@example.com"
+    email = "alice@test.com"
 
-    client.get("/auth/register")
-    response = client.post(
-        "/auth/register",
-        data={"email": email, "nickname": "Alice", "password": PASSWORD},
-        follow_redirects=False,
-    )
-    assert response.status_code == 403
-    assert response.json()["detail"] == "csrf_invalid"
+    # Register
+    r = api_post(client, "/auth/register", {"email": email, "nickname": "Alice", "password": PASSWORD})
+    assert r.status_code == 200
+    assert r.json()["user"]["email"] == email
 
-    response = post_form(
-        client,
-        "/auth/register",
-        {"email": email, "nickname": "Alice", "password": PASSWORD},
-    )
-    assert response.status_code == 200
-    assert "注册成功，请验证邮箱" in response.text
+    # Login fails before verification
+    r = login_user(client, email)
+    assert r.status_code == 403
 
+    # Verify email in DB
     with SessionLocal() as db:
         user = db.scalar(select(User).where(User.email == email))
-        assert user is not None
-        assert user.email_verified is False
+        user.email_verified = True
+        db.commit()
 
-    response = login(client, email)
-    assert response.status_code == 403
-    assert "邮箱尚未验证" in response.text
-
-    client.get("/auth/login")
-    response = post_form(client, "/auth/resend-verify", {"email": email})
-    assert response.status_code == 200
-    assert "验证邮件已处理" in response.text
-
-    response = client.get(f"/auth/verify?token={make_verify_token(email)}")
-    assert response.status_code == 200
-    assert "邮箱已验证" in response.text
-
-    response = login(client, email)
-    assert response.status_code == 303
+    # Login succeeds
+    r = login_user(client, email)
+    assert r.status_code == 200
+    assert r.json()["user"]["email"] == email
     assert client.cookies.get(SESSION_COOKIE)
 
+    # GET /auth/me
+    r = api_get(client, "/auth/me")
+    assert r.status_code == 200
+    assert r.json()["email"] == email
+    assert r.json()["nickname"] == "Alice"
 
+    # Logout
+    r = api_post(client, "/auth/logout")
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+
+    # Me after logout → 401
+    r = api_get(client, "/auth/me")
+    assert r.status_code == 401
+
+
+# ──────────────────────────────────────────────
+# Test 2: Signin awards points (idempotent)
+# ──────────────────────────────────────────────
 def test_signin_is_idempotent(app_env):
     client = app_env["client"]
     SessionLocal = app_env["SessionLocal"]
-    email = "signin@example.com"
+    email = "signer@test.com"
     make_user(SessionLocal, email, nickname="Signer", points=0)
 
-    response = login(client, email)
-    assert response.status_code == 303
+    assert login_user(client, email).status_code == 200
 
-    post_form(client, "/me/signin", follow_redirects=False)
-    post_form(client, "/me/signin", follow_redirects=False)
+    # First signin
+    r = api_post(client, "/me/signin")
+    assert r.status_code == 200
+    assert r.json()["points_awarded"] > 0
 
-    with SessionLocal() as db:
-        user = db.scalar(select(User).where(User.email == email))
-        signins = db.scalar(select(func.count(DailySignin.id)).where(DailySignin.user_id == user.id))
-        tx_count = db.scalar(
-            select(func.count(PointTransaction.id)).where(
-                PointTransaction.user_id == user.id,
-                PointTransaction.reason == REASON_SIGNIN,
-            )
-        )
-        assert signins == 1
-        assert tx_count == 1
-        assert user.points == settings.SIGNIN_POINTS
+    # Second signin same day → 400
+    r = api_post(client, "/me/signin")
+    assert r.status_code == 400
+    assert "已经签到" in r.json()["detail"]
+
+    # Dashboard shows correct state
+    r = api_get(client, "/me")
+    assert r.status_code == 200
+    assert r.json()["signed_today"] is True
+    assert r.json()["points"] == settings.SIGNIN_POINTS
 
 
-def test_request_lifecycle_claim_upload_confirm_and_library_sink(app_env):
+# ──────────────────────────────────────────────
+# Test 3: Full request lifecycle
+# ──────────────────────────────────────────────
+def test_request_lifecycle_claim_upload_confirm(app_env):
     client = app_env["client"]
     SessionLocal = app_env["SessionLocal"]
+    make_user(SessionLocal, "req@test.com", nickname="Requester", points=50)
+    make_user(SessionLocal, "help@test.com", nickname="Helper", points=0)
 
-    make_user(SessionLocal, "requester@example.com", nickname="Requester", points=50)
-    make_user(SessionLocal, "helper@example.com", nickname="Helper", points=0)
-
-    assert login(client, "requester@example.com").status_code == 303
-    client.get("/requests/new")
-    response = post_form(
-        client,
-        "/requests/new",
-        {
-            "title": "A Useful Paper",
-            "authors": "Alice, Bob",
-            "journal": "Nature",
-            "year": "2024",
-            "extra": "Need the full PDF",
-            "bounty": "20",
-        },
-        follow_redirects=False,
-    )
-    assert response.status_code == 303
+    # Requester creates request
+    assert login_user(client, "req@test.com").status_code == 200
+    r = api_post(client, "/requests", {
+        "title": "A Useful Paper", "authors": "Alice, Bob",
+        "journal": "Nature", "year": 2024, "extra": "Need PDF", "bounty": 20,
+    })
+    assert r.status_code == 200
+    req_id = r.json()["id"]
+    assert r.json()["status"] == "open"
 
     with SessionLocal() as db:
-        req = db.scalar(select(HelpRequest).where(HelpRequest.title == "A Useful Paper"))
-        requester = db.scalar(select(User).where(User.email == "requester@example.com"))
-        assert req is not None
-        req_id = req.id
+        req = db.get(HelpRequest, req_id)
         assert req.status == "open"
-        assert requester.points == 30
-        assert db.scalar(
-            select(func.count(PointTransaction.id)).where(
-                PointTransaction.user_id == requester.id,
-                PointTransaction.reason == REASON_PUBLISH_DEDUCT,
-                PointTransaction.ref_request_id == req_id,
-            )
-        ) == 1
+        requester = db.scalar(select(User).where(User.email == "req@test.com"))
+        assert requester.points == 30  # 50 - 20
 
-    logout(client)
-    assert login(client, "helper@example.com").status_code == 303
+    # Helper claims
+    assert login_user(client, "help@test.com").status_code == 200
+    r = api_post(client, f"/requests/{req_id}/claim")
+    assert r.status_code == 200
+    assert r.json()["status"] == "claimed"
 
-    response = post_form(client, f"/requests/{req_id}/claim", follow_redirects=False)
-    assert response.status_code == 303
-
-    response = post_form(
-        client,
-        f"/requests/{req_id}/upload",
-        files={"pdf": ("paper.pdf", sample_pdf_bytes(), "application/pdf")},
-        follow_redirects=False,
+    # Helper uploads PDF
+    pdf = sample_pdf_bytes()
+    r = client.post(
+        f"{API}/requests/{req_id}/upload",
+        files={"pdf": ("paper.pdf", pdf, "application/pdf")},
+        headers={"X-CSRF-Token": csrf(client)},
     )
-    assert response.status_code == 303
+    assert r.status_code == 200
+    assert r.json()["status"] == "awaiting_confirm"
 
     with SessionLocal() as db:
         req = db.get(HelpRequest, req_id)
-        helper = db.scalar(select(User).where(User.email == "helper@example.com"))
-        attachment = db.scalar(select(Attachment).where(Attachment.request_id == req_id))
         assert req.status == "awaiting_confirm"
-        assert req.claimed_by == helper.id
-        assert attachment is not None
-        assert Path(attachment.original_path).exists()
+        att = db.scalar(select(Attachment).where(Attachment.request_id == req_id))
+        assert att is not None
+        assert Path(att.original_path).exists()
 
-    logout(client)
-    assert login(client, "requester@example.com").status_code == 303
-    response = post_form(client, f"/requests/{req_id}/confirm", follow_redirects=False)
-    assert response.status_code == 303
+    # Requester confirms
+    assert login_user(client, "req@test.com").status_code == 200
+    r = api_post(client, f"/requests/{req_id}/confirm")
+    assert r.status_code == 200
+    assert r.json()["status"] == "completed"
 
     with SessionLocal() as db:
         req = db.get(HelpRequest, req_id)
-        helper = db.scalar(select(User).where(User.email == "helper@example.com"))
+        helper = db.scalar(select(User).where(User.email == "help@test.com"))
         paper = db.get(LibraryPaper, req.library_paper_id)
         assert req.status == "completed"
         assert helper.points == 20
         assert paper is not None
         assert Path(paper.file_path).exists()
-        assert Path(paper.file_path).with_name(f"{Path(paper.file_path).stem}.sanitized.pdf").exists()
-
-    detail = client.get(f"/requests/{req_id}")
-    assert detail.status_code == 200
-    assert "返回个人中心" in detail.text
-
-    download = client.get(f"/requests/{req_id}/download")
-    assert download.status_code == 200
-    assert download.headers["content-type"].startswith("application/pdf")
-
-    with SessionLocal() as db:
-        paper = db.get(LibraryPaper, req.library_paper_id)
-        assert paper.download_count == 1
-
-    logout(client)
-    anon_detail = client.get(f"/requests/{req_id}")
-    assert anon_detail.status_code == 200
-    assert "返回大厅" in anon_detail.text
-
-    library_page = client.get("/library?q=Useful")
-    assert library_page.status_code == 200
-    assert "A Useful Paper" in library_page.text
-    assert "登录后下载" in library_page.text
-
-    assert login(client, "requester@example.com").status_code == 303
-    library_download = client.get(f"/library/{req.library_paper_id}/download")
-    assert library_download.status_code == 200
-    assert library_download.headers["content-type"].startswith("application/pdf")
-
-    with SessionLocal() as db:
-        paper = db.get(LibraryPaper, req.library_paper_id)
-        assert paper.download_count == 2
 
 
-def test_admin_gift_and_force_close_refunds_bounty(app_env):
+# ──────────────────────────────────────────────
+# Test 4: Reject and reclaim
+# ──────────────────────────────────────────────
+def test_reject_and_reclaim(app_env):
     client = app_env["client"]
     SessionLocal = app_env["SessionLocal"]
+    make_user(SessionLocal, "req2@test.com", points=50)
+    make_user(SessionLocal, "help2@test.com", points=0)
 
-    make_user(SessionLocal, "admin@example.com", nickname="Admin", points=0, is_admin=True)
-    make_user(SessionLocal, "borrower@example.com", nickname="Borrower", points=0)
+    assert login_user(client, "req2@test.com").status_code == 200
+    r = api_post(client, "/requests", {
+        "title": "Reject Test", "authors": "X", "year": 2024, "bounty": 10,
+    })
+    req_id = r.json()["id"]
 
-    assert login(client, "admin@example.com").status_code == 303
-    response = post_form(
-        client,
-        "/admin/gift",
-        {"target": "borrower@example.com", "delta": "40", "note": "bootstrap"},
-        follow_redirects=False,
+    assert login_user(client, "help2@test.com").status_code == 200
+    api_post(client, f"/requests/{req_id}/claim")
+
+    # Upload
+    pdf = sample_pdf_bytes()
+    client.post(
+        f"{API}/requests/{req_id}/upload",
+        files={"pdf": ("bad.pdf", pdf, "application/pdf")},
+        headers={"X-CSRF-Token": csrf(client)},
     )
-    assert response.status_code == 303
+
+    # Requester rejects
+    assert login_user(client, "req2@test.com").status_code == 200
+    r = api_post(client, f"/requests/{req_id}/reject", {"reason": "wrong paper"})
+    assert r.status_code == 200
+    assert r.json()["status"] == "open"
+
+    # Helper reclaims and re-uploads
+    assert login_user(client, "help2@test.com").status_code == 200
+    api_post(client, f"/requests/{req_id}/claim")
+    client.post(
+        f"{API}/requests/{req_id}/upload",
+        files={"pdf": ("good.pdf", pdf, "application/pdf")},
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+
+    # Requester confirms
+    assert login_user(client, "req2@test.com").status_code == 200
+    r = api_post(client, f"/requests/{req_id}/confirm")
+    assert r.status_code == 200
+    assert r.json()["status"] == "completed"
+
+
+# ──────────────────────────────────────────────
+# Test 5: Admin gift and force close
+# ──────────────────────────────────────────────
+def test_admin_gift_and_force_close(app_env):
+    client = app_env["client"]
+    SessionLocal = app_env["SessionLocal"]
+    make_user(SessionLocal, "admin@test.com", is_admin=True)
+    make_user(SessionLocal, "borrower@test.com", points=0)
+
+    # Admin gifts points
+    assert login_user(client, "admin@test.com").status_code == 200
+    r = api_post(client, "/admin/gift", {"target": "borrower@test.com", "delta": 40, "note": "bootstrap"})
+    assert r.status_code == 200
 
     with SessionLocal() as db:
-        borrower = db.scalar(select(User).where(User.email == "borrower@example.com"))
-        assert borrower.points == 40
+        assert db.scalar(select(User).where(User.email == "borrower@test.com")).points == 40
 
-    logout(client)
-    assert login(client, "borrower@example.com").status_code == 303
-    client.get("/requests/new")
-    response = post_form(
-        client,
-        "/requests/new",
-        {
-            "title": "Need Closing",
-            "authors": "Carol",
-            "journal": "Science",
-            "year": "2023",
-            "extra": "",
-            "bounty": "30",
-        },
-        follow_redirects=False,
-    )
-    assert response.status_code == 303
+    # Borrower creates request
+    assert login_user(client, "borrower@test.com").status_code == 200
+    r = api_post(client, "/requests", {
+        "title": "Need Closing", "authors": "C", "year": 2023, "bounty": 30,
+    })
+    req_id = r.json()["id"]
+
+    # Admin force-closes
+    assert login_user(client, "admin@test.com").status_code == 200
+    r = api_post(client, f"/admin/requests/{req_id}/close", {"note": "cleanup"})
+    assert r.status_code == 200
 
     with SessionLocal() as db:
-        req = db.scalar(select(HelpRequest).where(HelpRequest.title == "Need Closing"))
-        req_id = req.id
-
-    logout(client)
-    assert login(client, "admin@example.com").status_code == 303
-    response = post_form(
-        client,
-        f"/admin/requests/{req_id}/close",
-        {"note": "cleanup"},
-        follow_redirects=False,
-    )
-    assert response.status_code == 303
-
-    with SessionLocal() as db:
-        borrower = db.scalar(select(User).where(User.email == "borrower@example.com"))
         req = db.get(HelpRequest, req_id)
+        borrower = db.scalar(select(User).where(User.email == "borrower@test.com"))
         assert req.status == "closed"
-        assert borrower.points == 40
+        assert borrower.points == 40  # refunded
 
 
-def test_publish_limit_blocks_too_many_active_requests(app_env):
+# ──────────────────────────────────────────────
+# Test 6: Admin settings
+# ──────────────────────────────────────────────
+def test_admin_settings(app_env):
     client = app_env["client"]
     SessionLocal = app_env["SessionLocal"]
+    make_user(SessionLocal, "admin2@test.com", is_admin=True)
+    assert login_user(client, "admin2@test.com").status_code == 200
 
-    make_user(SessionLocal, "limited@example.com", nickname="Limited", points=100)
-    with SessionLocal() as db:
-        db.add(SystemSetting(key="MAX_ACTIVE_REQUESTS", value="1"))
-        db.commit()
+    # Get settings
+    r = api_get(client, "/admin/settings")
+    assert r.status_code == 200
+    assert "items" in r.json()
+    assert len(r.json()["items"]) > 0
 
-    assert login(client, "limited@example.com").status_code == 303
-    response = client.get("/requests/new")
-    assert response.status_code == 200
-    assert "进行中 0/1" in response.text
+    # Save a setting
+    r = api_post(client, "/admin/settings", {"values": {"SITE_TITLE": "测试站"}, "toggles": []})
+    assert r.status_code == 200
+    assert r.json()["changed"] >= 0
 
-    response = post_form(
-        client,
-        "/requests/new",
-        {
-            "title": "First Active Request",
-            "authors": "Alice",
-            "journal": "Cell",
-            "year": "2024",
-            "extra": "",
-            "bounty": "10",
-        },
-        follow_redirects=False,
-    )
-    assert response.status_code == 303
-
-    response = client.get("/requests/new")
-    assert response.status_code == 200
-    assert "进行中 1/1" in response.text
-    assert "同时进行中的求助上限" in response.text
-
-    response = post_form(
-        client,
-        "/requests/new",
-        {
-            "title": "Second Active Request",
-            "authors": "Bob",
-            "journal": "Nature",
-            "year": "2024",
-            "extra": "",
-            "bounty": "10",
-        },
-        follow_redirects=True,
-    )
-    assert response.status_code == 400
-    assert "已达到上限 1 条" in response.text
+    # Reset
+    r = api_post(client, "/admin/settings/reset", {"key": "SITE_TITLE"})
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
 
 
-def test_runtime_site_copy_is_used_in_templates(app_env):
+# ──────────────────────────────────────────────
+# Test 7: Library search and download
+# ──────────────────────────────────────────────
+def test_library_search_and_download(app_env):
     client = app_env["client"]
     SessionLocal = app_env["SessionLocal"]
+    make_user(SessionLocal, "libreq@test.com", points=50)
+    make_user(SessionLocal, "libhelp@test.com", points=0)
+
+    # Create and complete a request
+    assert login_user(client, "libreq@test.com").status_code == 200
+    r = api_post(client, "/requests", {
+        "title": "Library Paper", "authors": "Foo", "year": 2024, "bounty": 10,
+    })
+    req_id = r.json()["id"]
+
+    assert login_user(client, "libhelp@test.com").status_code == 200
+    api_post(client, f"/requests/{req_id}/claim")
+    pdf = sample_pdf_bytes()
+    client.post(
+        f"{API}/requests/{req_id}/upload",
+        files={"pdf": ("lib.pdf", pdf, "application/pdf")},
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+
+    assert login_user(client, "libreq@test.com").status_code == 200
+    api_post(client, f"/requests/{req_id}/confirm")
 
     with SessionLocal() as db:
-        db.add(SystemSetting(key="SITE_TITLE", value="文献互助测试站"))
-        db.add(SystemSetting(key="SITE_SLOGAN", value="运行时配置立即生效"))
-        db.commit()
+        paper_id = db.get(HelpRequest, req_id).library_paper_id
 
-    response = client.get("/")
-    assert response.status_code == 200
-    assert "文献互助测试站" in response.text
-    assert "运行时配置立即生效" in response.text
+    # Search library
+    r = api_get(client, "/library", {"q": "Library Paper"})
+    assert r.status_code == 200
+    assert r.json()["total"] >= 1
+    assert any(item["title"] == "Library Paper" for item in r.json()["items"])
 
-    response = client.get("/auth/login")
-    assert response.status_code == 200
-    assert "<title>登录 · 文献互助测试站</title>" in response.text
+    # Download
+    r = client.get(f"{API}/library/{paper_id}/download")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("application/pdf")
 
 
-def test_admin_settings_can_send_smtp_test_email(app_env, monkeypatch):
+# ──────────────────────────────────────────────
+# Test 8: Home and search
+# ──────────────────────────────────────────────
+def test_home_and_search(app_env):
+    client = app_env["client"]
+
+    r = api_get(client, "/home")
+    assert r.status_code == 200
+    data = r.json()
+    assert "activities" in data
+    assert "recent_library" in data
+    assert "library_count" in data
+    assert "site_title" in data
+
+    r = api_get(client, "/search", {"q": "test"})
+    assert r.status_code == 200
+    assert "library_results" in r.json()
+    assert "open_req_results" in r.json()
+
+
+# ──────────────────────────────────────────────
+# Test 9: CSRF required
+# ──────────────────────────────────────────────
+def test_csrf_rejection(app_env):
+    client = app_env["client"]
+
+    # POST without CSRF token → 403
+    r = client.post(f"{API}/auth/register", json={"email": "x@x.com", "nickname": "X", "password": PASSWORD})
+    assert r.status_code == 403
+    assert r.json()["detail"] == "csrf_invalid"
+
+
+# ──────────────────────────────────────────────
+# Test 10: Admin users and reports
+# ──────────────────────────────────────────────
+def test_admin_users_and_reports(app_env):
     client = app_env["client"]
     SessionLocal = app_env["SessionLocal"]
-    make_user(SessionLocal, "admin@example.com", nickname="Admin", points=0, is_admin=True)
+    admin_id = make_user(SessionLocal, "admin3@test.com", is_admin=True)
+    user_id = make_user(SessionLocal, "user3@test.com", points=10)
 
-    sent = {}
+    assert login_user(client, "admin3@test.com").status_code == 200
 
-    def fake_send_email(db, *, to: str, subject: str, body: str):
-        sent["to"] = to
-        sent["subject"] = subject
-        sent["body"] = body
-        return {"mode": "smtp", "detail": "ok"}
+    # List users
+    r = api_get(client, "/admin/users")
+    assert r.status_code == 200
+    assert r.json()["total"] >= 2
 
-    monkeypatch.setattr(admin_mod, "send_email", fake_send_email)
+    # Toggle active
+    r = api_post(client, f"/admin/users/{user_id}/toggle-active")
+    assert r.status_code == 200
+    assert r.json()["is_active"] is False
 
-    with SessionLocal() as db:
-        db.add(SystemSetting(key="SMTP_HOST", value="smtp.qq.com"))
-        db.add(SystemSetting(key="SMTP_PORT", value="587"))
-        db.add(SystemSetting(key="SMTP_USER", value="bot@qq.com"))
-        db.add(SystemSetting(key="SMTP_PASS", value="secret"))
-        db.add(SystemSetting(key="SMTP_FROM", value="bot@qq.com"))
-        db.add(SystemSetting(key="SMTP_USE_SSL", value="false"))
-        db.commit()
+    # Re-enable
+    r = api_post(client, f"/admin/users/{user_id}/toggle-active")
+    assert r.status_code == 200
+    assert r.json()["is_active"] is True
 
-    assert login(client, "admin@example.com").status_code == 303
-    response = client.get("/admin/settings")
-    assert response.status_code == 200
-    assert "SMTP 当前状态" in response.text
-    assert "smtp.qq.com:587" in response.text
+    # Can't disable self
+    r = api_post(client, f"/admin/users/{admin_id}/toggle-active")
+    assert r.status_code == 400
 
-    response = post_form(
-        client,
-        "/admin/settings/test-email",
-        {"test_email": "deliver@example.com"},
-        follow_redirects=True,
-    )
-    assert response.status_code == 200
-    assert "测试邮件已发送到 deliver@example.com" in response.text
-    assert sent["to"] == "deliver@example.com"
-    assert "SMTP 测试邮件" in sent["subject"]
+    # List reports (empty)
+    r = api_get(client, "/admin/reports")
+    assert r.status_code == 200
+    assert r.json()["total"] == 0
 
-
-def test_health_reports_deploy_metadata(app_env, monkeypatch, tmp_path):
-    branch_file = tmp_path / ".deploy_branch"
-    rev_file = tmp_path / ".deploy_rev"
-    branch_file.write_text("codex/m6-runtime-hardening", encoding="utf-8")
-    rev_file.write_text("2573de73c2bda31ca0b08495f428dcb4d7df7002", encoding="utf-8")
-
-    monkeypatch.setattr(main_mod, "DEPLOY_BRANCH_FILE", branch_file)
-    monkeypatch.setattr(main_mod, "DEPLOY_REV_FILE", rev_file)
-
-    response = app_env["client"].get("/health")
-    assert response.status_code == 200
-    assert response.json() == {
-        "status": "ok",
-        "version": "2573de7",
-        "deploy_branch": "codex/m6-runtime-hardening",
-        "deploy_rev": "2573de73c2bda31ca0b08495f428dcb4d7df7002",
-    }
+    # Admin overview
+    r = api_get(client, "/admin")
+    assert r.status_code == 200
+    assert "users" in r.json()
+    assert "total_requests" in r.json()

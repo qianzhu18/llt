@@ -3,8 +3,8 @@
 ## Architecture
 
 **Frontend**: Vue 3 + Vite + TypeScript + Tailwind CSS + Pinia + Vue Router (`frontend/`)
-**Backend**: FastAPI + SQLAlchemy + Jinja2 (legacy) + SQLite (`app/`)
-**Deployment**: FastAPI serves both JSON API (`/api/v1/*`) and Vue SPA static files
+**Backend**: FastAPI + SQLAlchemy + SQLite (`app/`)
+**Deployment**: FastAPI serves JSON API (`/api/v1/*`) + Vue SPA static files from `frontend/dist/`
 
 ### Development
 
@@ -25,18 +25,18 @@ cd frontend && npm run build   # produces frontend/dist/
 
 ### API Routes (under /api/v1/)
 
-- `GET /api/v1/auth/me` — current user or 401
-- `POST /api/v1/auth/register` — {email, nickname, password}
-- `POST /api/v1/auth/login` — {email, password} → sets session cookie
-- `POST /api/v1/auth/logout` — clears session cookie
-- `GET /api/v1/home` — homepage data (activities, library, stats)
-- `GET /api/v1/search?q=` — search library + open requests
+- **Auth**: `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`, `POST /auth/resend-verify`
+- **Home**: `GET /home`, `GET /search?q=`
+- **Requests**: `GET /requests`, `GET /requests/new-info`, `POST /requests`, `GET /requests/{id}`, `POST /requests/{id}/claim|release|upload|confirm|reject|report`, `GET /requests/{id}/download`
+- **Library**: `GET /library`, `GET /library/{id}/download`
+- **Me**: `GET /me/dashboard`, `POST /me/signin`, `POST /me/profile`
+- **Admin**: `GET /admin/overview`, `GET|POST /admin/settings`, `POST /admin/settings/reset`, `POST /admin/settings/test-email`, `POST /admin/gift`, `GET /admin/users`, `POST /admin/users/{id}/toggle-active`, `GET /admin/requests`, `POST /admin/requests/{id}/close`, `GET /admin/reports`, `POST /admin/reports/{id}/dismiss`
 
 ### Auth
 
 - Signed cookie session (`litshare_session`, httponly, 30 days)
 - CSRF: double-submit cookie (`litshare_csrf`, **non-httponly** for SPA), validated via `X-CSRF-Token` header
-- API endpoints use `require_csrf_header` dependency; Jinja2 routes use `require_csrf` (form field)
+- API endpoints use `require_csrf_header` dependency
 
 ### Key Files
 
@@ -51,10 +51,9 @@ cd frontend && npm run build   # produces frontend/dist/
 
 ## Migration Status
 
-**Sprint 0 (done)**: Vue scaffold + auth API + homepage data API + all page stubs
-**Sprint 1 (next)**: Requests API (lobby/detail/create/actions) + full Vue pages
-**Sprint 2**: Library/Me/Admin API + full Vue pages
-**Sprint 3**: Remove Jinja2 templates, final cleanup
+**Complete**: Vue 3 SPA migration done. All Sprints 0-3 finished.
+- Jinja2 templates and old HTML routes fully removed
+- All functionality available via JSON API + Vue frontend
 
 ## Business Rules
 

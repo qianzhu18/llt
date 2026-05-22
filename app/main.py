@@ -166,7 +166,12 @@ if _FRONTEND_DIST.is_dir():
                 # Serve Vue index.html for SPA routes
                 index = _FRONTEND_DIST / "index.html"
                 if index.is_file():
-                    return FileResponse(str(index))
+                    spa_resp = FileResponse(str(index))
+                    # Propagate cookies set by earlier middleware (e.g. CSRF)
+                    for key, value in response.headers.multi_items():
+                        if key.lower() == "set-cookie":
+                            spa_resp.headers.append(key, value)
+                    return spa_resp
             return response
 
     app.add_middleware(VueSpaFallback)

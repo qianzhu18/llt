@@ -13,9 +13,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import app.main as main_mod
-import app.routers.requests as requests_mod
+import app.routers.api.requests as api_requests_mod
 import app.services as services_mod
-import app.templating as templating_mod
 from app.db import Base, get_db
 from app.settings import settings
 
@@ -41,8 +40,7 @@ def app_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(settings, "ADMIN_EMAIL", "admin@example.com")
     monkeypatch.setattr(services_mod, "UPLOADS_DIR", uploads_dir)
     monkeypatch.setattr(services_mod, "LIBRARY_DIR", library_dir)
-    monkeypatch.setattr(requests_mod, "UPLOADS_DIR", uploads_dir)
-    monkeypatch.setattr(templating_mod, "SessionLocal", SessionLocal)
+    monkeypatch.setattr(api_requests_mod, "UPLOADS_DIR", uploads_dir)
     monkeypatch.setattr(main_mod._scheduler, "start", lambda: None)
     monkeypatch.setattr(main_mod._scheduler, "shutdown", lambda wait=False: None)
 
@@ -56,7 +54,9 @@ def app_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     main_mod.app.dependency_overrides[get_db] = override_get_db
 
     with TestClient(main_mod.app) as client:
-        client.get("/")
+        # Trigger CSRF cookie — must hit an actual route, not "/" which goes
+        # through VueSpaFallback and discards the middleware-set cookie.
+        client.get("/health")
         yield {
             "client": client,
             "SessionLocal": SessionLocal,
