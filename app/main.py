@@ -6,7 +6,7 @@ from typing import Optional
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from sqlalchemy import desc, func, or_, select
@@ -20,6 +20,8 @@ from .routers import auth as auth_router
 from .routers import library as library_router
 from .routers import me as me_router
 from .routers import requests as requests_router
+from .routers.api import auth as api_auth_router
+from .routers.api import home as api_home_router
 from .security import current_user
 from .services import tick
 from .settings import settings
@@ -114,6 +116,10 @@ app.include_router(me_router.router)
 app.include_router(requests_router.router)
 app.include_router(library_router.router)
 app.include_router(admin_router.router)
+
+# JSON API routers for the Vue SPA
+app.include_router(api_auth_router.router)
+app.include_router(api_home_router.router)
 
 
 @app.exception_handler(HTTPException)
@@ -251,3 +257,35 @@ def search(
         open_req_results=open_req_results,
         open_req_total=open_req_total,
     )
+
+
+# ---------------------------------------------------------------------------
+# Serve Vue SPA in production (frontend/dist)
+# ---------------------------------------------------------------------------
+_FRONTEND_DIST = ROOT / "frontend" / "dist"
+
+if _FRONTEND_DIST.is_dir():
+    from starlette.middleware.base import BaseHTTPMiddleware
+
+    app.mount("/assets", StaticFiles(directory=str(_FRONTEND_DIST / "assets")), name="vue-assets")
+
+    class VueSpaFallback(BaseHTTPMiddleware):
+        """If no API/static route matched AND the path looks like a SPA route
+        (no file extension), serve Vue's index.html. Otherwise 404 as usual."""
+        async def dispatch(self, request, call_next):
+            response = await call_next(request)
+            if response.status_code == 404:
+                path = request.url.path
+                # Skip API and static paths
+                if path.startswith("/api/") or path.startswith("/static/") or path.startswith("/assets/"):
+                    return response
+                # Skip paths with file extensions (e.g. favicon.ico, robots.txt)
+                if "." in path.split("/")[-1]:
+                    return response
+                # Serve Vue index.html for SPA routes
+                index = _FRONTEND_DIST / "index.html"
+                if index.is_file():
+                    return FileResponse(str(index))
+            return response
+
+    app.add_middleware(VueSpaFallback)

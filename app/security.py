@@ -111,7 +111,7 @@ def set_csrf_cookie(response, request: Request, token: str) -> None:
         CSRF_COOKIE,
         token,
         max_age=CSRF_MAX_AGE,
-        httponly=True,
+        httponly=False,  # SPA needs to read this via JS
         samesite="lax",
         secure=cookie_secure(request),
         path=cookie_path(request),
@@ -136,6 +136,13 @@ def csrf_valid(request: Request, form_token: str) -> bool:
 
 def require_csrf(request: Request, csrf_token: str = Form("", alias="_csrf")) -> None:
     if not csrf_valid(request, csrf_token):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="csrf_invalid")
+
+
+def require_csrf_header(request: Request) -> None:
+    """CSRF check for JSON API: reads token from X-CSRF-Token header."""
+    header_token = request.headers.get("x-csrf-token", "")
+    if not csrf_valid(request, header_token):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="csrf_invalid")
 
 

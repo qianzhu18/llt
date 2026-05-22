@@ -8,3 +8,6 @@ __pycache__/
 *.log
 /app.zip
 .DS_Store
+/frontend/node_modules/
+/frontend/dist/
+*.local
