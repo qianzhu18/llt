@@ -20,6 +20,7 @@ from .routers import auth as auth_router
 from .routers import library as library_router
 from .routers import me as me_router
 from .routers import requests as requests_router
+from .routers.api import admin as api_admin_router
 from .routers.api import auth as api_auth_router
 from .routers.api import home as api_home_router
 from .routers.api import library as api_library_router
@@ -126,6 +127,7 @@ app.include_router(api_home_router.router)
 app.include_router(api_requests_router.router)
 app.include_router(api_library_router.router)
 app.include_router(api_me_router.router)
+app.include_router(api_admin_router.router)
 
 
 @app.exception_handler(HTTPException)
