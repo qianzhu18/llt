@@ -15,6 +15,7 @@ from .routers.api import home as api_home_router
 from .routers.api import library as api_library_router
 from .routers.api import me as api_me_router
 from .routers.api import requests as api_requests_router
+from .security import CSRF_COOKIE, ensure_csrf_token, set_csrf_cookie
 from .services import tick
 from .settings import settings
 
@@ -98,6 +99,16 @@ async def proxy_prefix(request: Request, call_next):
     if fwd is not None:
         request.scope["root_path"] = fwd.rstrip("/")
     return await call_next(request)
+
+
+@app.middleware("http")
+async def ensure_csrf(request: Request, call_next):
+    """Ensure every response carries a valid CSRF cookie (non-httponly for SPA)."""
+    response = await call_next(request)
+    if CSRF_COOKIE not in request.cookies or not request.cookies.get(CSRF_COOKIE):
+        token = ensure_csrf_token(request)
+        set_csrf_cookie(response, request, token)
+    return response
 
 
 # JSON API routers for the Vue SPA
