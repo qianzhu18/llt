@@ -22,6 +22,9 @@ from .routers import me as me_router
 from .routers import requests as requests_router
 from .routers.api import auth as api_auth_router
 from .routers.api import home as api_home_router
+from .routers.api import library as api_library_router
+from .routers.api import me as api_me_router
+from .routers.api import requests as api_requests_router
 from .security import current_user
 from .services import tick
 from .settings import settings
@@ -120,6 +123,9 @@ app.include_router(admin_router.router)
 # JSON API routers for the Vue SPA
 app.include_router(api_auth_router.router)
 app.include_router(api_home_router.router)
+app.include_router(api_requests_router.router)
+app.include_router(api_library_router.router)
+app.include_router(api_me_router.router)
 
 
 @app.exception_handler(HTTPException)
