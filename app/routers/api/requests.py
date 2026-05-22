@@ -138,9 +138,9 @@ def _req_to_json(req: HelpRequest, requester_nick: str, helper_nick: str | None 
 class CreateRequestBody(BaseModel):
     title: str
     authors: str
-    journal: str = ""
+    journal: Optional[str] = None
     year: int
-    extra: str = ""
+    extra: Optional[str] = None
     bounty: int
 
 
@@ -231,8 +231,8 @@ def create_request(
 ):
     title = body.title.strip()
     authors = body.authors.strip()
-    journal = body.journal.strip()
-    extra = body.extra.strip()
+    journal = (body.journal or "").strip()
+    extra = (body.extra or "").strip()
 
     timeout_days = get_setting(db, "REQUEST_TIMEOUT_DAYS", settings.REQUEST_TIMEOUT_DAYS, cast=as_int)
     journal_limit = get_setting(db, "SAME_JOURNAL_MONTHLY_LIMIT", settings.SAME_JOURNAL_MONTHLY_LIMIT, cast=as_int)
