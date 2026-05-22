@@ -2,7 +2,14 @@
 from fastapi import Request, status
 from fastapi.responses import RedirectResponse
 
-from .templating import base_path_of
+
+def base_path_of(request: Request) -> str:
+    """The public URL prefix the browser sees for this request.
+
+    Derived from X-Forwarded-Prefix (set by Caddy per-site), so the same
+    uvicorn instance can be served at multiple public bases.
+    """
+    return request.scope.get("root_path", "") or ""
 
 
 def public_url(request: Request, path: str) -> str:

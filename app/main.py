@@ -1,35 +1,22 @@
-"""FastAPI entry. Mounts routers, starts the background scheduler, serves the homepage."""
+"""FastAPI entry. Mounts JSON API routers, starts the background scheduler."""
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Optional
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from sqlalchemy import desc, func, or_, select
-from sqlalchemy.orm import Session
-
-from .db import Base, SessionLocal, engine, get_db
-from .models import HelpRequest, LibraryPaper, PointTransaction, User
-from .points import REASON_HELP_ACCEPTED, REASON_PUBLISH_DEDUCT
-from .routers import admin as admin_router
-from .routers import auth as auth_router
-from .routers import library as library_router
-from .routers import me as me_router
-from .routers import requests as requests_router
+from .db import Base, SessionLocal, engine
 from .routers.api import admin as api_admin_router
 from .routers.api import auth as api_auth_router
 from .routers.api import home as api_home_router
 from .routers.api import library as api_library_router
 from .routers.api import me as api_me_router
 from .routers.api import requests as api_requests_router
-from .security import current_user
 from .services import tick
 from .settings import settings
-from .templating import render
 
 
 # Send our app loggers to stderr so they land in systemd's journal / app.log.
@@ -113,14 +100,6 @@ async def proxy_prefix(request: Request, call_next):
     return await call_next(request)
 
 
-app.mount("/static", StaticFiles(directory=str(ROOT / "app" / "static")), name="static")
-
-app.include_router(auth_router.router)
-app.include_router(me_router.router)
-app.include_router(requests_router.router)
-app.include_router(library_router.router)
-app.include_router(admin_router.router)
-
 # JSON API routers for the Vue SPA
 app.include_router(api_auth_router.router)
 app.include_router(api_home_router.router)
@@ -132,36 +111,7 @@ app.include_router(api_admin_router.router)
 
 @app.exception_handler(HTTPException)
 async def http_exc_handler(request: Request, exc: HTTPException):
-    """Redirect unauthenticated HTML GETs to login; otherwise fall through."""
-    if (
-        exc.status_code == status.HTTP_403_FORBIDDEN
-        and exc.detail == "csrf_invalid"
-        and "text/html" in request.headers.get("accept", "")
-    ):
-        return render(
-            request,
-            "auth/notice.html",
-            current_user=None,
-            title="表单已失效",
-            message="这个页面可能开太久了。刷新后再提交一次就好。",
-            action_label="返回首页",
-            action_url="/",
-            status_code=status.HTTP_403_FORBIDDEN,
-        )
-    if (
-        exc.status_code == status.HTTP_401_UNAUTHORIZED
-        and exc.detail == "login_required"
-        and "text/html" in request.headers.get("accept", "")
-    ):
-        from .urls import public_url
-        base = request.scope.get("root_path", "")
-        # next= must include the public base so post-login round-trip works.
-        public_next = base + request.url.path
-        return RedirectResponse(
-            url=public_url(request, f"/auth/login?next={public_next}"),
-            status_code=status.HTTP_303_SEE_OTHER,
-        )
-    # Default handling for everything else.
+    """Default HTTP exception handling."""
     from fastapi.exception_handlers import http_exception_handler
     return await http_exception_handler(request, exc)
 
@@ -177,94 +127,6 @@ def health():
         "deploy_rev": rev or None,
     }
 
-
-def _recent_activities(db: Session, limit: int = 15) -> list[dict]:
-    """Recent publish + accept events for the homepage ticker."""
-    rows = db.execute(
-        select(PointTransaction, User.nickname, HelpRequest.title)
-        .join(User, User.id == PointTransaction.user_id)
-        .join(HelpRequest, HelpRequest.id == PointTransaction.ref_request_id, isouter=True)
-        .where(PointTransaction.reason.in_([REASON_PUBLISH_DEDUCT, REASON_HELP_ACCEPTED]))
-        .order_by(desc(PointTransaction.created_at))
-        .limit(limit)
-    ).all()
-    out = []
-    for tx, nick, title in rows:
-        if tx.reason == REASON_PUBLISH_DEDUCT:
-            out.append({"actor": nick, "verb": "求助了", "object": title or "?", "ts": tx.created_at})
-        elif tx.reason == REASON_HELP_ACCEPTED:
-            out.append({"actor": nick, "verb": "完成了一次应助", "object": "", "ts": tx.created_at})
-    return out
-
-
-def _recent_library(db: Session, limit: int = 6) -> list[LibraryPaper]:
-    return db.scalars(
-        select(LibraryPaper).order_by(desc(LibraryPaper.created_at)).limit(limit)
-    ).all()
-
-
-@app.get("/", response_class=HTMLResponse)
-def index(
-    request: Request,
-    user: Optional[User] = Depends(current_user),
-    db: Session = Depends(get_db),
-):
-    return render(
-        request, "index.html",
-        current_user=user,
-        activities=_recent_activities(db),
-        recent_library=_recent_library(db),
-        library_count=db.scalar(select(func.count(LibraryPaper.id))) or 0,
-    )
-
-
-@app.get("/search", response_class=HTMLResponse)
-def search(
-    request: Request,
-    q: str = Query("", min_length=1, max_length=200),
-    db: Session = Depends(get_db),
-    viewer: Optional[User] = Depends(current_user),
-):
-    """HTMX partial: search both shared library and open requests."""
-    like = f"%{q.lower()}%"
-    limit = 5
-
-    # Search shared library (completed papers)
-    lib_cond = or_(
-        func.lower(LibraryPaper.title).like(like),
-        func.lower(LibraryPaper.authors).like(like),
-        func.lower(LibraryPaper.journal).like(like),
-    )
-    library_results = db.scalars(
-        select(LibraryPaper).where(lib_cond).order_by(desc(LibraryPaper.created_at)).limit(limit)
-    ).all()
-    library_total = db.scalar(select(func.count(LibraryPaper.id)).where(lib_cond)) or 0
-
-    # Search open requests (people seeking help)
-    req_cond = or_(
-        func.lower(HelpRequest.title).like(like),
-        func.lower(HelpRequest.authors).like(like),
-        func.lower(HelpRequest.journal).like(like),
-    )
-    open_req_results = db.scalars(
-        select(HelpRequest)
-        .where(HelpRequest.status == "open", req_cond)
-        .order_by(desc(HelpRequest.created_at))
-        .limit(limit)
-    ).all()
-    open_req_total = db.scalar(
-        select(func.count(HelpRequest.id)).where(HelpRequest.status == "open", req_cond)
-    ) or 0
-
-    return render(
-        request, "_search_results.html",
-        current_user=viewer,
-        q=q,
-        library_results=library_results,
-        library_total=library_total,
-        open_req_results=open_req_results,
-        open_req_total=open_req_total,
-    )
 
 
 # ---------------------------------------------------------------------------
